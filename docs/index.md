@@ -1,0 +1,83 @@
+---
+layout: home
+
+hero:
+  text: Run the world behind your game.
+  tagline: A Rust server framework with typed game logic, resilient networking, and infrastructure that scales only when you need it.
+  actions:
+    - theme: brand
+      text: Build your first server
+      link: /guide/quick-start
+    - theme: alt
+      text: Explore the architecture
+      link: /concepts/architecture
+
+features:
+  - icon: "01"
+    title: From zero to a live server
+    details: Generate an editable Rust application, local configuration, containers, and deployment manifests in one command.
+    link: /guide/quick-start
+    linkText: Start building
+  - icon: "02"
+    title: Typed from wire to handler
+    details: Use ELR2 framing, generated client SDKs, protobuf messages, typed handlers, and explicit middleware.
+    link: /guides/world-development
+    linkText: Write game logic
+  - icon: "03"
+    title: Scale without a rewrite
+    details: Add Redis, SQL, DNS, Kubernetes, metrics, protection, and horizontal routing while keeping the same application boundary.
+    link: /guides/deployment
+    linkText: Design for production
+---
+
+## Start with a generated application
+
+You do not need to understand every Elura crate before running a server. Generate
+an application first, then learn each piece while changing real code:
+
+```bash
+cargo install elura-cli
+mkdir my-game && cd my-game
+elura init all --dir .
+```
+
+The generator creates editable application code, local configuration, Docker
+files, and Kubernetes manifests. Continue with the
+[10-minute quick start](/guide/quick-start) to configure development secrets and
+launch both processes.
+
+## The mental model
+
+```text
+Player client ──> Gateway ──> World ──> your typed handler
+                  sessions     routing   game rules
+```
+
+- **Gateway** owns public connections, authentication, sessions, and routing.
+- **World** executes authenticated game commands and middleware.
+- **Your application** owns routes, game rules, configuration, persistence, and
+  deployment choices.
+
+That separation stays the same whether you run locally, as a monolith, or across
+multiple Kubernetes nodes. [Read the architecture overview](/concepts/architecture)
+when you want the full picture.
+
+## Choose your next step
+
+| I want to… | Go to… |
+| --- | --- |
+| Run Elura for the first time | [Quick start](/guide/quick-start) |
+| Run Gateway and World in one process without the CLI | [Manual single-process setup](/guide/manual-monolith) |
+| Build separate Gateway and World processes without the CLI | [Manual split setup](/guide/manual-setup) |
+| Assemble shared state and dynamic discovery | [Manual distributed setup](/guide/manual-distributed) |
+| Add my first game command | [World modules and routes](/guides/world-development) |
+| Connect a C++, C#, or TypeScript client | [Client protocol SDKs](/guides/client-sdks) |
+| Understand generated files | [Generated project](/guide/generated-project) |
+| Add login, OTP, SMS, or payments | [Providers](/guides/providers) |
+| Add Redis, SQL, DNS, or Kubernetes | [Distributed infrastructure](/guides/distributed) |
+| Prepare a production release | [Production checklist](/reference/production-checklist) |
+
+::: warning Project status
+Elura is under active `0.x` development. Pin exact versions in production and
+review compatibility before upgrading.
+:::
