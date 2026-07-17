@@ -67,10 +67,12 @@ elura init all --dir .
 | 不使用 CLI 拆分 Gateway 与 World | [手动拆分搭建](/zh/guide/manual-setup) |
 | 组装共享状态与动态发现 | [手动分布式搭建](/zh/guide/manual-distributed) |
 | 添加第一个游戏命令 | [World 模块与路由](/zh/guides/world-development) |
+| 添加 TCP、WebSocket、QUIC 或自定义客户端端点 | [客户端传输](/zh/guides/transports) |
+| 添加 Axum HTTP API 或回调端点 | [应用 HTTP 服务](/zh/guides/application-http) |
 | 连接 C++、C# 或 TypeScript 客户端 | [客户端协议 SDK](/zh/guides/client-sdks) |
 | 看懂生成的文件 | [生成的项目](/zh/guide/generated-project) |
-| 接入登录、OTP、短信或支付 | [第三方服务](/zh/guides/providers) |
-| 加入 Redis、SQL、DNS 或 Kubernetes | [分布式基础设施](/zh/guides/distributed) |
+| 选择 Redis、SQL、DNS、Kubernetes 或自定义后端 | [Adapters](/zh/adapters/) |
+| 接入登录、OTP、短信或支付 | [Providers](/zh/providers/) |
 | 准备生产发布 | [生产检查清单](/zh/reference/production-checklist) |
 
 ::: warning 项目状态

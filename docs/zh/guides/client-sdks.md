@@ -35,12 +35,28 @@ elura init sdk --language typescript --dir .
 | `sdk/csharp/` | 无第三方依赖的 .NET 8 类库 | 黄金向量可执行程序 |
 | `sdk/typescript/` | TypeScript ES Module | Node 测试与类型检查 |
 
-三套实现都包含帧编码、完整消息解码、TCP 流重组、保留路由、标准错误、Gateway
-内置 Payload 与 Session Control protobuf 编码。项目中还会包含
+三套实现都包含帧编码、完整消息解码、TCP 流重组、保留路由、标准错误、认证与
+重连 Payload 以及 Session Control protobuf 编码。TypeScript 与 C# 为这些内置
+Payload 提供 JSON Encoder/Decoder；C++ 提供对应的模型 Struct，由应用选择的
+JSON 库完成序列化。项目中还会包含
 `proto/session_control.proto`，便于希望自行生成 protobuf 类型的应用使用。
 
-SDK 有意**不负责**打开 Socket 或分发应用路由。连接生命周期、重连策略、请求
-关联以及 `100+` 路由的消息编码仍由客户端负责。
+SDK 有意**不负责**打开 Socket 或分发应用路由。连接生命周期、续票调度、重连
+退避、请求关联以及 `100+` 路由的消息编码仍由客户端负责。
+
+## 静默重连流程
+
+1. 解码路由 `1` 的认证响应，只安全保存 `response.reconnect.ticket`。
+2. 根据 `response.reconnect.expires_in_seconds` 在过期前安排续票。
+3. 保持连接时，把当前票据作为 `ReconnectTicketRequest` 发送到路由 `3`。
+   TypeScript 与 C# 提供 `encodeReconnectRequest(currentTicket)`；C++ 应用使用
+   自己选择的 JSON 库序列化已有模型。
+4. 成功解码续票响应后，才用返回的新票据替换本地票据。
+5. 断线后建立新传输连接，用保存的重连票据调用路由 `1`，再保存新认证响应中的
+   重连票据。
+6. 没有有效重连票据时，通过上层登录服务的 Refresh Session 获取登录票据。
+
+票据本身是 Credential，不应写入日志或应用遥测。
 
 ## 传输契约
 

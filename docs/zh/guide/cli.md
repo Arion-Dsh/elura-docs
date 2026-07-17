@@ -47,7 +47,7 @@ elura init module --name inventory --dir .
 ```
 
 命令会创建 `src/world/inventory/mod.rs`。将模块加入应用模块树，并通过
-`WorldBuilder` 注册。
+`World::install`（或 `Monolith::install`）安装。
 
 ## 生成路由
 

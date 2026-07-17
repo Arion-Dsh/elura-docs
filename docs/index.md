@@ -71,10 +71,12 @@ when you want the full picture.
 | Build separate Gateway and World processes without the CLI | [Manual split setup](/guide/manual-setup) |
 | Assemble shared state and dynamic discovery | [Manual distributed setup](/guide/manual-distributed) |
 | Add my first game command | [World modules and routes](/guides/world-development) |
+| Add TCP, WebSocket, QUIC, or a custom client endpoint | [Client transports](/guides/transports) |
+| Add an Axum HTTP API or callback endpoint | [Application HTTP services](/guides/application-http) |
 | Connect a C++, C#, or TypeScript client | [Client protocol SDKs](/guides/client-sdks) |
 | Understand generated files | [Generated project](/guide/generated-project) |
-| Add login, OTP, SMS, or payments | [Providers](/guides/providers) |
-| Add Redis, SQL, DNS, or Kubernetes | [Distributed infrastructure](/guides/distributed) |
+| Choose Redis, SQL, DNS, Kubernetes, or a custom backend | [Adapters](/adapters/) |
+| Add login, OTP, SMS, or payments | [Providers](/providers/) |
 | Prepare a production release | [Production checklist](/reference/production-checklist) |
 
 ::: warning Project status

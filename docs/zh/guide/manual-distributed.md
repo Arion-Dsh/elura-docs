@@ -4,22 +4,31 @@ outline: 2
 
 # 手动搭建分布式服务
 
-本教程把[手动拆分应用](./manual-setup)升级为可水平扩展的拓扑。Redis 提供
-World 注册/发现、共享票据防重放、在线租约、跨 Gateway Push 与会话控制。
+本教程把[手动拆分应用](./manual-setup)升级为可水平扩展的拓扑。Gateway 与 World
+之间的应用流量通过 ELR2 直接传输；Redis 不是这条数据路径上的代理或 Broker。
+本教程使用现成的 Redis 适配器实现 World 注册/发现、共享票据防重放、在线租约、
+跨 Gateway Push 与会话控制。
 
 ```text
-客户端 ──> Gateway 1 ─┐                 ┌─> World 1
-客户端 ──> Gateway 2 ─┼─ Redis + ELR2 ─┼─> World 2
-                     └─────────────────┘
+应用数据：
+客户端 ──> Gateways ── ELR2 ──> Worlds
+
+共享状态与控制：
+Gateways <──> 可替换基础设施 <──> Worlds
+                 （本教程使用 Redis）
 ```
+
+这些基础设施职责由多个独立的核心 Trait 抽象，并不是一个固定的中间件依赖。
+应用可以混用现有的内存、DNS、Kubernetes、SQL 与 Redis 适配器，也可以提供自定义
+实现。本教程选择 Redis，是因为仓库为下面的拓扑提供了一套完整的 Redis 适配器。
 
 ## 1. 启用 Redis
 
-保留拆分教程中的依赖，修改 Elura Feature，并添加应用显式使用的 Redis Client：
+保留拆分教程中的依赖并修改 Elura Feature。Facade 会启用适配器内部使用的 Redis
+Client，因此本示例无需在应用中直接依赖 `redis`：
 
 ```toml [Cargo.toml]
-elura = { version = "0.1.1", features = ["redis"] }
-redis = { version = "1", features = ["tokio-comp", "connection-manager"] }
+elura = { version = "0.2.2", features = ["redis"] }
 ```
 
 ## 2. 注册每个 World
@@ -30,7 +39,7 @@ redis = { version = "1", features = ["tokio-comp", "connection-manager"] }
 ```rust [src/bin/world.rs]
 use std::{env, fs, sync::Arc};
 
-use elura::adapters::discovery::RedisWorldRegistrationConfig;
+use elura::adapters::discovery::{RedisWorldRegistrar, RedisWorldRegistrationConfig};
 use elura::prelude::*;
 use prost::Message;
 use serde::Deserialize;
@@ -40,10 +49,13 @@ use serde::Deserialize;
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
 struct AppConfig {
-    runtime: WorldLaunchConfig,
+    runtime: WorldConfig,
+    admin: AdminServerConfig,
     registration: RedisWorldRegistrationConfig,
     #[serde(skip)]
     instance_id: String,
+    #[serde(skip)]
+    redis_url: String,
 }
 
 impl AppConfig {
@@ -51,11 +63,11 @@ impl AppConfig {
         let path = env::var("APP_WORLD_CONFIG")
             .unwrap_or_else(|_| "config/distributed-world.json".into());
         let mut config: Self = serde_json::from_slice(&fs::read(path)?)?;
-        config.runtime.internal_token = required_env("APP_INTERNAL_TOKEN")?;
-        config.runtime.admin.token = optional_env("APP_ADMIN_TOKEN");
-        config.registration.url = required_env("APP_REDIS_URL")?;
+        config.runtime.internal_token = Some(required_env("APP_INTERNAL_TOKEN")?);
+        config.admin.token = optional_env("APP_ADMIN_TOKEN");
+        config.redis_url = required_env("APP_REDIS_URL")?;
         config.instance_id = required_env("APP_INSTANCE_ID")?;
-        config.runtime.admin.instance_id = config.instance_id.clone();
+        config.admin.instance_id = config.instance_id.clone();
         Ok(config)
     }
 }
@@ -63,21 +75,17 @@ impl AppConfig {
 #[tokio::main]
 async fn main() -> elura::Result<()> {
     let app = AppConfig::load()?;
-    let registrar = Arc::new(app.registration.build(&app.instance_id)?);
-    WorldLauncher::new(app.runtime)?
-        .with_registrar(registrar)
-        .configure(|builder| {
-            builder.register(
-                Hello,
-                |_context, request| async move {
-                    Ok(HelloResponse {
-                        message: format!("Hello, {}!", request.name),
-                    })
-                },
-            )?;
-            Ok(())
-        })?
-        .run()
+    let registrar = Arc::new(
+        RedisWorldRegistrar::connect(&app.redis_url, &app.instance_id, app.registration).await?,
+    );
+    World::new(app.runtime)
+        .registrar(registrar)
+        .route(Hello, |_context, request| async move {
+            Ok(HelloResponse {
+                message: format!("Hello, {}!", request.name),
+            })
+        })
+        .run(app.admin)
         .await
 }
 
@@ -94,11 +102,12 @@ async fn main() -> elura::Result<()> {
 ```rust [src/bin/gateway.rs]
 use std::{env, fs, sync::Arc, time::Duration};
 
-use elura::adapters::discovery::RedisWorldDiscoveryConfig;
-use elura::adapters::distributed::RedisOnlineDirectory;
-use elura::adapters::redis::{
-    RedisReplayStore, RedisSessionControlBus, RedisSessionControlConfig,
-    RedisStreamPushBus, RedisStreamPushConfig,
+use elura::adapters::discovery::{RedisWorldDiscovery, RedisWorldDiscoveryConfig};
+use elura::adapters::online::RedisOnlineDirectory;
+use elura::adapters::push::{RedisStreamPushBus, RedisStreamPushConfig};
+use elura::adapters::replay::RedisReplayStore;
+use elura::adapters::session_control::{
+    RedisSessionControlBus, RedisSessionControlConfig,
 };
 use elura::prelude::*;
 use serde::Deserialize;
@@ -116,7 +125,9 @@ struct DistributedConfig {
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
 struct AppConfig {
-    runtime: GatewayLaunchConfig,
+    runtime: GatewayConfig,
+    admin: AdminServerConfig,
+    tcp: TcpConfig,
     discovery: RedisWorldDiscoveryConfig,
     distributed: DistributedConfig,
     #[serde(skip)]
@@ -129,12 +140,11 @@ impl AppConfig {
             .unwrap_or_else(|_| "config/distributed-gateway.json".into());
         let mut config: Self = serde_json::from_slice(&fs::read(path)?)?;
         config.runtime.ticket.key = required_env("APP_TICKET_KEY")?;
-        config.runtime.internal_token = required_env("APP_INTERNAL_TOKEN")?;
-        config.runtime.admin.token = optional_env("APP_ADMIN_TOKEN");
+        config.runtime.internal_token = Some(required_env("APP_INTERNAL_TOKEN")?);
+        config.admin.token = optional_env("APP_ADMIN_TOKEN");
         config.redis_url = required_env("APP_REDIS_URL")?;
-        config.discovery.url = config.redis_url.clone();
         if let Some(id) = optional_env("APP_INSTANCE_ID") {
-            config.runtime.admin.instance_id = id;
+            config.admin.instance_id = id;
         }
         Ok(config)
     }
@@ -143,10 +153,12 @@ impl AppConfig {
 #[tokio::main]
 async fn main() -> elura::Result<()> {
     let app = AppConfig::load()?;
-    let gateway_id = app.runtime.admin.instance_id.clone();
+    let gateway_id = app.admin.instance_id.clone();
     let prefix = app.distributed.key_prefix.clone();
 
-    let discovery = Arc::new(app.discovery.build()?);
+    let discovery = Arc::new(
+        RedisWorldDiscovery::connect(&app.redis_url, app.discovery).await?,
+    );
     let replay = Arc::new(
         RedisReplayStore::connect(&app.redis_url, format!("{prefix}:replay")).await?,
     );
@@ -163,31 +175,28 @@ async fn main() -> elura::Result<()> {
         &gateway_id,
         app.distributed.push,
     )?);
-    let client = redis::Client::open(app.redis_url.as_str())
-        .map_err(|error| elura::Error::InvalidConfig(format!("Redis URL: {error}")))?;
-    let session_control = Arc::new(RedisSessionControlBus::new(
-        client,
+    let session_control = Arc::new(RedisSessionControlBus::connect(
+        &app.redis_url,
         &gateway_id,
         app.distributed.session_control,
-    )?);
+    ).await?);
+    let tcp = TcpTransport::new(app.tcp)?;
 
-    let infrastructure = GatewayInfrastructure::new()
-        .with_replay_store(replay)
-        .with_online_directory(
+    Gateway::new(app.runtime)
+        .transport(tcp)
+        .replay_store(replay)
+        .online_directory(
             &gateway_id,
             online.clone(),
             app.distributed.lease_ttl,
             app.distributed.renew_interval,
             DuplicateLoginMode::KickExisting,
         )
-        .with_push_transport(push)
-        .with_session_control_transport(session_control)
-        .with_readiness_probe("redis-online", online)?;
-
-    GatewayLauncher::new(app.runtime)?
-        .with_infrastructure(infrastructure)?
-        .with_world_discovery(discovery)
-        .run()
+        .push_transport(push)
+        .session_control_transport(session_control)
+        .readiness_probe("redis-online", online)
+        .world_discovery(discovery)
+        .run(app.admin)
         .await
 }
 
@@ -208,12 +217,12 @@ fn optional_env(name: &str) -> Option<String> {
 ```json [config/distributed-world.json]
 {
   "runtime": {
-    "world": { "listen": "127.0.0.1:18000" },
-    "admin": {
-      "listen": "127.0.0.1:18001",
-      "component": "world",
-      "instance_id": "replaced-from-environment"
-    }
+    "listen": "127.0.0.1:18000"
+  },
+  "admin": {
+    "listen": "127.0.0.1:18001",
+    "component": "world",
+    "instance_id": "replaced-from-environment"
   },
   "registration": {
     "key_prefix": "elura:worlds",
@@ -230,15 +239,20 @@ fn optional_env(name: &str) -> Option<String> {
 ```json [config/distributed-gateway.json]
 {
   "runtime": {
-    "gateway": { "listen": "127.0.0.1:17000" },
-    "ticket": { "issuer": "game-login", "audience": "game-gateway" },
-    "admin": {
-      "listen": "127.0.0.1:17001",
-      "component": "gateway",
-      "instance_id": "gateway-local-1"
+    "ticket": {
+      "issuer": "game-login",
+      "audience": "game-gateway",
+      "login_ttl": { "secs": 60, "nanos": 0 },
+      "reconnect_ttl": { "secs": 1800, "nanos": 0 }
     },
     "world_routing": { "pool_size": 2, "max_in_flight_per_connection": 64 }
   },
+  "admin": {
+    "listen": "127.0.0.1:17001",
+    "component": "gateway",
+    "instance_id": "gateway-local-1"
+  },
+  "tcp": { "listen": "127.0.0.1:17000" },
   "discovery": {
     "key_prefix": "elura:worlds",
     "refresh_interval": { "secs": 5, "nanos": 0 }

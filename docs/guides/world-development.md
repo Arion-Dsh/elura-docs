@@ -11,7 +11,7 @@ and protobuf response in one `Route` implementation:
 
 ```rust
 use prost::Message;
-use elura::prelude::{Route, WorldBuilder, WorldContext};
+use elura::prelude::{Route, World, WorldConfig, WorldContext};
 
 #[derive(Clone, PartialEq, Message)]
 struct GetPlayerProfileRequest {}
@@ -44,17 +44,18 @@ async fn get_player_profile(
     })
 }
 
-fn register(builder: &mut WorldBuilder) -> elura::Result<()> {
-    builder.register(GetPlayerProfile, get_player_profile)?;
-    Ok(())
+fn world(config: WorldConfig) -> World {
+    World::new(config).route(GetPlayerProfile, get_player_profile)
 }
 ```
 
 Register at least one application route before building a World. Route IDs must
-be `100` or greater; IDs and names must both be unique. `WorldBuilder::register`
-decodes the request and encodes the successful response with the associated
-protobuf types. Use `register_raw` only for low-level integrations that
-intentionally handle payload bytes themselves.
+be `100` or greater; IDs and names must both be unique. `World::route` decodes
+the request and encodes the successful response with the associated protobuf
+types. Fluent registration is intentionally infallible at each call site;
+invalid configuration and duplicate routes are reported by `build()` or
+`run()`. Use `route_raw` only for low-level integrations that intentionally
+handle payload bytes themselves.
 
 ## Return business errors
 
@@ -81,7 +82,7 @@ error frames.
 asynchronous lifecycle:
 
 ```rust
-use elura::world::{WorldBuilder, WorldModule};
+use elura::world::{WorldModule, WorldModuleRegistry};
 
 struct InventoryModule;
 
@@ -90,7 +91,7 @@ impl WorldModule for InventoryModule {
         "inventory"
     }
 
-    fn register(&self, builder: &mut WorldBuilder) -> elura::Result<()> {
+    fn register(&self, world: &mut WorldModuleRegistry<'_>) -> elura::Result<()> {
         // Register inventory handlers and middleware here.
         Ok(())
     }
@@ -100,7 +101,7 @@ impl WorldModule for InventoryModule {
 Install the module while configuring the World:
 
 ```rust
-builder.install(std::sync::Arc::new(InventoryModule))?;
+let world = World::new(config).install(InventoryModule);
 ```
 
 Generate a starting point with:
@@ -132,9 +133,19 @@ the request ID so idempotency protection can recognize the retry.
 
 ## Testing
 
-Use the harness returned by `WorldServer::harness()` for handler-level tests
-without opening sockets. Its concrete type is
-`elura::world::testing::WorldHarness`. Cover:
+Build the fluent World and use the harness returned by `WorldServer::harness()`
+for handler-level tests without opening sockets:
+
+```rust
+let harness = World::new(WorldConfig::default())
+    .route(GetPlayerProfile, get_player_profile)
+    .build()?
+    .harness();
+```
+
+Its concrete type is `elura::world::testing::WorldHarness`. The typed
+`call(route, identity, request)` helper encodes the request and decodes the
+response. Cover:
 
 - valid and invalid protobuf payloads;
 - identity/realm authorization;

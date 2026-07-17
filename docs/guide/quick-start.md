@@ -123,9 +123,9 @@ dependencies.
 In a third terminal, check the admin endpoints:
 
 ```bash
-curl -i http://127.0.0.1:18001/healthz
-curl -i http://127.0.0.1:17001/healthz
-curl -i http://127.0.0.1:17001/readyz
+curl -i http://127.0.0.1:18001/elura/healthz
+curl -i http://127.0.0.1:17001/elura/healthz
+curl -i http://127.0.0.1:17001/elura/readyz
 ```
 
 Each healthy endpoint returns `204 No Content`. You now have this local

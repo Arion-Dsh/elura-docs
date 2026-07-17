@@ -23,6 +23,8 @@
 
 - [ ] 多 Gateway 共享 Replay Store。
 - [ ] 重复登录策略已配置所需在线目录与会话控制传输。
+- [ ] 在线看板区分已认证 Session 数和按 `user_id` 去重的用户数。
+- [ ] 持久在线投影会与 Lease 过期结果对账，而不是只依赖 `SessionObserver`。
 - [ ] 业务需要时已配置跨 Gateway Push。
 - [ ] 服务发现及时移除未就绪或已终止的 World。
 - [ ] 有状态 World 使用所有权与 Epoch 策略。
@@ -46,4 +48,3 @@
 - [ ] 日志包含 Trace、Request、Route、Session 和实例标识，但不包含密钥。
 - [ ] 管理修改只能通过可审计的运维路径执行。
 - [ ] 仪表盘和事故 Runbook 已在演练中验证。
-

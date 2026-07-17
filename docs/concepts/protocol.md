@@ -56,16 +56,17 @@ protobuf provides language-neutral application request and response payloads.
 | --- | --- |
 | `1` | Authenticate |
 | `2` | Heartbeat |
-| `3` | Reconnect |
+| `3` | Renew the current reconnect ticket |
 | `4` | Session control |
 | `5..99` | Reserved for future runtime use |
 | `100+` | Application routes |
 
 Do not allocate application IDs below `100`. On the Rust server, each typed
 application route implements `Route`, which binds its ID, diagnostic name,
-protobuf request, and protobuf response. `WorldBuilder::register` rejects
-duplicate IDs and names during startup. Clients must use the same route ID and
-protobuf schema.
+protobuf request, and protobuf response. `World::route` records duplicate IDs
+and names and returns the error from `build()` or `run()`. A reusable
+`WorldModule` registers routes through `WorldModuleRegistry::route`. Clients
+must use the same route ID and protobuf schema.
 
 ## Application payloads and errors
 
@@ -94,7 +95,8 @@ Client                         Gateway                         World
   ├── request route=1, ticket ───>│                              │
   │                               ├── verify signature/claims    │
   │                               ├── check replay/admission     │
-  │<── response session+identity ─┤                              │
+  │<── response session+identity  │                              │
+  │    + reconnect ticket ────────┤                              │
   │                               │                              │
   ├── request route>=100 ────────>│                              │
   │                               ├── authenticated command ────>│
@@ -107,13 +109,57 @@ Unauthenticated sessions must authenticate within the Gateway’s
 token buckets, bounded queues, payload limits, handler timeouts, and idle
 timeouts.
 
+Authentication route `1` accepts a single-use login or reconnect ticket:
+
+```json
+{ "ticket": "signed-ticket" }
+```
+
+Its response contains `session_id`, `identity`, and the next reconnect ticket:
+
+```json
+{
+  "session_id": "0195d8f4-48e8-7c42-b91c-c5d42b055cf5",
+  "identity": {
+    "account_id": 10,
+    "user_id": 20,
+    "region_id": 1,
+    "realm_id": 2,
+    "generation": 1
+  },
+  "reconnect": {
+    "ticket": "signed-reconnect-ticket",
+    "expires_in_seconds": 1800
+  }
+}
+```
+
+Route `3` is available only to an authenticated session. Its request must carry
+the current reconnect ticket, which is consumed before the replacement is
+returned:
+
+```json
+{ "ticket": "current-reconnect-ticket" }
+```
+
+```json
+{
+  "ticket": "replacement-reconnect-ticket",
+  "expires_in_seconds": 1800
+}
+```
+
+An actual reconnect opens a new transport and sends the saved reconnect ticket
+to route `1`. It does not send route `3` on an unauthenticated connection.
+
 ## Request IDs and retries
 
 Request IDs are client-generated correlation identifiers and must be non-zero.
-The Gateway maintains a bounded response cache for recently completed requests,
-and the World maintains a bounded idempotency cache. Retries should reuse the
-same request ID and route within the configured TTL. Do not treat these in-memory
-caches as durable exactly-once delivery.
+The Gateway maintains a bounded response cache for recently completed requests.
+Retries should reuse the same request ID and route within the configured TTL.
+Do not treat this in-memory cache as durable exactly-once delivery; business
+operations that require idempotency need an application-owned durable key and
+transactional constraint.
 
 ## Compatibility
 

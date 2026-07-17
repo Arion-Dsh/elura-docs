@@ -14,17 +14,17 @@ Authorization: Bearer <admin-token>
 
 | 方法与路径 | 认证 | 响应 |
 | --- | --- | --- |
-| `GET /healthz` | 无 | `204` |
-| `GET /readyz` | 无 | `204`，或 `503` 加原因 |
-| `GET /version` | 无 | 版本/组件 JSON |
-| `GET /metrics` | 受保护 | Prometheus 文本 |
-| `GET /debug/stats` | 受保护 | 运行时统计 JSON |
-| `GET /debug/backend` | 受保护 | Gateway 保护状态 JSON 或 `404` |
-| `GET /debug/routes` | 受保护 | World 路由 JSON 或 `404` |
+| `GET /elura/healthz` | 无 | `204` |
+| `GET /elura/readyz` | 无 | `204`，或 `503` 加原因 |
+| `GET /elura/version` | 无 | 版本/组件 JSON |
+| `GET /elura/metrics` | 受保护 | Prometheus 文本 |
+| `GET /elura/debug/stats` | 受保护 | 运行时统计 JSON |
+| `GET /elura/debug/backend` | 受保护 | Gateway 保护状态 JSON 或 `404` |
+| `GET /elura/debug/routes` | 受保护 | World 路由 JSON 或 `404` |
 
 ## 强制退出
 
-`POST /admin/sessions/force-logout`
+`POST /elura/admin/sessions/force-logout`
 
 ```json
 {
@@ -43,7 +43,7 @@ Authorization: Bearer <admin-token>
 
 ## 撤销账户版本
 
-`POST /admin/sessions/revoke-account-version`
+`POST /elura/admin/sessions/revoke-account-version`
 
 ```json
 {
@@ -59,7 +59,7 @@ Authorization: Bearer <admin-token>
 
 创建或替换限时封禁：
 
-`PUT /admin/admission/user-bans`
+`PUT /elura/admin/admission/user-bans`
 
 ```json
 {
@@ -74,12 +74,12 @@ Authorization: Bearer <admin-token>
 解除封禁：
 
 ```text
-DELETE /admin/admission/user-bans/{region_id}/{realm_id}/{user_id}
+DELETE /elura/admin/admission/user-bans/{region_id}/{realm_id}/{user_id}
 ```
 
 ## IP 封禁
 
-`PUT /admin/admission/ip-bans/{ip}`
+`PUT /elura/admin/admission/ip-bans/{ip}`
 
 ```json
 {
@@ -88,11 +88,11 @@ DELETE /admin/admission/user-bans/{region_id}/{realm_id}/{user_id}
 }
 ```
 
-使用 `DELETE /admin/admission/ip-bans/{ip}` 解除。
+使用 `DELETE /elura/admin/admission/ip-bans/{ip}` 解除。
 
 ## 维护模式
 
-`PUT /admin/admission/maintenance`
+`PUT /elura/admin/admission/maintenance`
 
 ```json
 {
@@ -101,7 +101,7 @@ DELETE /admin/admission/user-bans/{region_id}/{realm_id}/{user_id}
 }
 ```
 
-使用 `DELETE /admin/admission/maintenance` 清除。
+使用 `DELETE /elura/admin/admission/maintenance` 清除。
 
 ## 状态码
 
@@ -116,4 +116,3 @@ DELETE /admin/admission/user-bans/{region_id}/{realm_id}/{user_id}
 
 所有修改端点都属于敏感运维操作。上层控制面应记录已认证的操作员和原因；运行时
 Bearer Token 本身不提供用户级审计身份。
-

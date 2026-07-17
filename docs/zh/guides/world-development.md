@@ -10,7 +10,7 @@ protobuf 响应：
 
 ```rust
 use prost::Message;
-use elura::prelude::{Route, WorldBuilder, WorldContext};
+use elura::prelude::{Route, World, WorldConfig, WorldContext};
 
 #[derive(Clone, PartialEq, Message)]
 struct GetPlayerProfileRequest {}
@@ -43,15 +43,15 @@ async fn get_player_profile(
     })
 }
 
-fn register(builder: &mut WorldBuilder) -> elura::Result<()> {
-    builder.register(GetPlayerProfile, get_player_profile)?;
-    Ok(())
+fn world(config: WorldConfig) -> World {
+    World::new(config).route(GetPlayerProfile, get_player_profile)
 }
 ```
 
 构建 World 前至少注册一个应用路由。路由 ID 必须大于等于 `100`，ID 和名称都
-不能重复。`WorldBuilder::register` 使用关联的 protobuf 类型解码请求并编码成功
-响应。只有确实需要自行处理 Payload 字节的底层集成才应使用 `register_raw`。
+不能重复。`World::route` 使用关联的 protobuf 类型解码请求并编码成功响应。
+Fluent 注册调用本身不会返回错误；无效配置和重复路由会由 `build()` 或 `run()`
+返回。只有确实需要自行处理 Payload 字节的底层集成才应使用 `route_raw`。
 
 ## 返回业务错误
 
@@ -75,7 +75,7 @@ Gateway 会把它发送为关联原 Request ID 的 ELR2 `Error` 帧。只有重�
 `WorldModule` 为业务模块提供名称、注册 Hook 和可选的异步生命周期：
 
 ```rust
-use elura::world::{WorldBuilder, WorldModule};
+use elura::world::{WorldModule, WorldModuleRegistry};
 
 struct InventoryModule;
 
@@ -84,7 +84,7 @@ impl WorldModule for InventoryModule {
         "inventory"
     }
 
-    fn register(&self, builder: &mut WorldBuilder) -> elura::Result<()> {
+    fn register(&self, world: &mut WorldModuleRegistry<'_>) -> elura::Result<()> {
         // Register inventory handlers and middleware here.
         Ok(())
     }
@@ -94,7 +94,7 @@ impl WorldModule for InventoryModule {
 配置 World 时安装模块：
 
 ```rust
-builder.install(std::sync::Arc::new(InventoryModule))?;
+let world = World::new(config).install(InventoryModule);
 ```
 
 使用 CLI 生成起点：
@@ -124,8 +124,18 @@ elura init route --module inventory --name equip_item --id 120
 
 ## 测试
 
-使用 `WorldServer::harness()` 返回的 Harness 测试 Handler，无需打开 Socket。
-其具体类型为 `elura::world::testing::WorldHarness`。至少覆盖：
+构建 Fluent World，再使用 `WorldServer::harness()` 返回的 Harness 测试 Handler，
+无需打开 Socket：
+
+```rust
+let harness = World::new(WorldConfig::default())
+    .route(GetPlayerProfile, get_player_profile)
+    .build()?
+    .harness();
+```
+
+其具体类型为 `elura::world::testing::WorldHarness`。类型化
+`call(route, identity, request)` 会编码请求并解码响应。至少覆盖：
 
 - 有效和无效 protobuf 载荷；
 - 身份与 Realm 授权；

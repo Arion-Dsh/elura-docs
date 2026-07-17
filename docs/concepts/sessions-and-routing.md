@@ -15,9 +15,16 @@ An authenticated identity contains:
 | `user_id` | Player or character principal |
 | `generation` | Account version used for revocation |
 
-The login service issues a short-lived ticket with these claims. The Gateway
-verifies issuer, audience, signature, expiry, and replay state before making the
-identity available to a session.
+The application login service authenticates credentials, resolves the account,
+selects region and realm, and calls `TicketService::issue_login`. The resulting
+login ticket is short-lived and single-use. Every ticket carries an explicit
+`purpose` of `login` or `reconnect`; the Gateway verifies issuer, audience,
+signature, purpose, lifetime, identity, and replay state before binding that
+identity to a session.
+
+`TicketService` has separate lifetimes for the two purposes. The generated
+Gateway defaults are 60 seconds for `login_ttl` and 30 minutes for
+`reconnect_ttl`. Both must be positive and no greater than one hour.
 
 ## Session lifecycle
 
@@ -26,10 +33,23 @@ states. The Gateway enforces an authentication deadline before allowing
 application routes. Heartbeats maintain liveness, and idle sessions are closed
 after `idle_timeout`.
 
-Reconnect tickets let a client re-establish a session without replaying the
-original login flow. Sequence numbers help the runtime reason about delivered
-traffic around a disconnect. The exact client policy—retry timing, state
-reconciliation, and UI behavior—belongs to the game client.
+Ticket expiry does not close an already authenticated session. On every
+successful authentication, the Gateway returns a fresh reconnect ticket and
+its `expires_in_seconds` value. The client retains only that latest ticket.
+
+While connected, the client renews near expiry by sending the current reconnect
+ticket to route `3`. Renewal consumes the current ticket and returns its
+replacement. After a disconnect, the client opens a new connection and sends
+the latest reconnect ticket to authentication route `1`; successful
+authentication consumes it and returns the next reconnect ticket.
+
+If the reconnect ticket is unavailable or expired, the client asks the
+application login service for a new login ticket using an application-owned
+refresh session. Elura owns Gateway ticket validation and rotation. The upper
+application owns refresh tokens, device sessions, credential reauthentication,
+and the decision to show login UI. Sequence numbers help the runtime reason
+about delivered traffic around a disconnect; retry timing, state reconciliation,
+and UI behavior remain client policy.
 
 ## Duplicate login
 
@@ -47,6 +67,24 @@ Use lease settings where:
 
 A typical generated distributed configuration uses a 45-second lease and a
 15-second renewal interval.
+
+## Presence and lifecycle observers
+
+`OnlineDirectory` is the authoritative source for live Session leases.
+`OnlineStatsReader` reports both authenticated Session count and player count
+deduplicated by `user_id`. A complete Adapter implements `OnlineBackend`, the
+automatic combination of both contracts.
+
+Gateway also exposes `SessionObserver` with `Connected`, `Authenticated`, and
+`Closed` transitions. `Closed` retains the authenticated identity, but it
+describes one Session—not necessarily the player's final Session. Applications
+should enqueue the event, query `user_sessions`, and mark the player offline
+only when no live Session remains.
+
+Observer delivery is process-local and best effort. A Gateway process that
+terminates abruptly cannot emit `Closed`; leases still expire through TTL.
+Durable application projections therefore need reconciliation against the
+online directory. See the [online presence API](/adapters/online).
 
 ## Account generation
 

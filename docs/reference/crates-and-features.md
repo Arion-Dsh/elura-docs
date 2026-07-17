@@ -9,7 +9,10 @@ The workspace is split into focused crates. Most applications depend on the
 | --- | --- | --- |
 | `elura` | Unified facade and feature selection | Yes, recommended |
 | `elura-core` | Protocol, sessions, routing, tickets, realtime primitives | For low-level integrations |
-| `elura-runtime` | Gateway, World, transport, launchers, observability | Usually through `elura` |
+| `elura-runtime` | Lifecycle, security, administration, and observability | Usually through `elura` |
+| `elura-gateway` | Client connection and session runtime | Usually through `elura` |
+| `elura-world` | Command and player-state runtime | Usually through `elura` |
+| `elura-monolith` | Single-process Gateway and World composition | Usually through `elura` |
 | `elura-adapters` | Redis, SQL, DNS, Kubernetes, outbox adapters | Usually through `elura` |
 | `elura-providers` | Identity, OTP, SMS, payment providers | Usually through `elura` |
 | `elura-cli` | Project scaffolding binary | Install as a tool |
@@ -18,16 +21,20 @@ The workspace is split into focused crates. Most applications depend on the
 
 ## Facade features
 
-The `elura` crate enables `runtime` by default; `runtime` includes `core`.
+The `elura` crate enables `gateway` and `world` by default. Both include
+`runtime`, and `runtime` includes `core`.
 
 | Feature | Enables |
 | --- | --- |
 | `core` | `elura-core` |
 | `runtime` | `core`, `elura-runtime` |
+| `gateway` | `runtime`, `elura-gateway` |
+| `world` | `runtime`, `elura-world` |
+| `monolith` | `gateway`, `world`, `elura-monolith` |
 | `adapters` | `runtime`, base `elura-adapters` |
-| `redis` | `adapters`, Redis adapter implementations |
+| `redis` | `adapters`, `gateway`, `world`, Redis adapter implementations |
 | `sql` | `adapters`, SQL adapter implementations |
-| `kubernetes` | `adapters`, Kubernetes adapter implementations |
+| `kubernetes` | `adapters`, `gateway`, Kubernetes adapter implementations |
 | `admin` | `adapters`, adapter-backed admin capabilities |
 | `providers` | `core`, base `elura-providers` |
 | `identity` | identity provider set |
@@ -51,15 +58,23 @@ Use the prelude for common application contracts and runtime types:
 
 ```rust
 use elura::prelude::{
-    GatewayLaunchConfig, GatewayLauncher, Identity, WorldBuilder, WorldContext,
+    AdminServerConfig, Gateway, GatewayConfig, Identity, OnlineBackend,
+    OnlineDirectory, OnlineStatsReader, Route, SessionEvent, SessionObserver,
+    TcpConfig, TcpTransport, World, WorldConfig, WorldContext,
 };
+```
+
+The online contracts are in the prelude; concrete backends remain explicit:
+
+```rust
+use elura::adapters::online::RedisOnlineDirectory; // `redis`
 ```
 
 Use domain modules when the responsibility should remain visible at the call
 site:
 
 ```rust
-use elura::world::{WorldBuilder, WorldModule};
+use elura::world::{World, WorldModule, WorldModuleRegistry};
 use elura::world::middleware::LoggingMiddleware;
 use elura::world::testing::WorldHarness;
 use elura::gateway::GatewayInfrastructure;
@@ -69,8 +84,8 @@ Concrete infrastructure and provider implementations are never added to the
 prelude. Import them through their feature-gated namespaces:
 
 ```rust
-use elura::adapters::discovery::DnsWorldDiscoveryConfig;
-use elura::adapters::redis::RedisReplayStore; // `redis`
+use elura::adapters::discovery::{DnsWorldDiscovery, DnsWorldDiscoveryConfig};
+use elura::adapters::replay::RedisReplayStore; // `redis`
 use elura::providers::identity::GuestProvider; // `identity`
 use elura::providers::payment::WechatPayPayment; // `payment-wechat-pay`
 ```
@@ -85,21 +100,22 @@ from the prelude when their feature is enabled.
 
 ```toml
 # Gateway + World runtime only (default)
-elura = "0.1.1"
+elura = "0.2.2"
 
 # DNS discovery types live in the adapter crate without a concrete optional
 # backend, so the generated split project starts with this feature.
-elura = { version = "0.1.1", features = ["adapters"] }
+elura = { version = "0.2.2", features = ["adapters"] }
 
 # Redis-backed distributed application
-elura = { version = "0.1.1", features = ["redis"] }
+elura = { version = "0.2.2", features = ["redis"] }
 
 # Kubernetes discovery and SQL account versions
-elura = { version = "0.1.1", features = ["kubernetes", "sql"] }
+elura = { version = "0.2.2", features = ["kubernetes", "sql"] }
 ```
 
-During `0.x`, pin a precise compatible version and review release notes before
-upgrading.
+The CLI writes its exact Elura release into generated manifests. Keep the CLI
+and facade crate on the same release so generated source matches the imported
+API.
 
 ## Rustdoc
 

@@ -52,15 +52,16 @@ protobuf 提供语言无关的应用请求与响应 Payload。
 | ---: | --- |
 | `1` | 认证 |
 | `2` | 心跳 |
-| `3` | 重连 |
+| `3` | 轮换当前重连票据 |
 | `4` | 会话控制 |
 | `5..99` | 保留给未来运行时功能 |
 | `100+` | 应用路由 |
 
 不要为应用分配低于 `100` 的 ID。Rust 服务端的每个类型化应用路由都实现
 `Route`，在一处绑定 ID、诊断名称、protobuf 请求和 protobuf 响应。
-`WorldBuilder::register` 会在启动时拒绝重复的 ID 和名称。客户端必须使用相同的
-路由 ID 与 protobuf Schema。
+`World::route` 会记录重复的 ID 和名称，并由 `build()` 或 `run()` 返回错误。
+可复用 `WorldModule` 通过 `WorldModuleRegistry::route` 注册路由。客户端必须使用
+相同的路由 ID 与 protobuf Schema。
 
 ## 应用 Payload 与错误
 
@@ -87,7 +88,8 @@ protobuf 提供语言无关的应用请求与响应 Payload。
   ├── 请求 route=1, ticket ─────>│                              │
   │                               ├── 验证签名与 Claims          │
   │                               ├── 检查重放与准入             │
-  │<── 响应 session+identity ────┤                              │
+  │<── 响应 session+identity     │                              │
+  │    + reconnect ticket ───────┤                              │
   │                               │                              │
   ├── 请求 route>=100 ──────────>│                              │
   │                               ├── 已认证命令 ───────────────>│
@@ -98,11 +100,54 @@ protobuf 提供语言无关的应用请求与响应 Payload。
 未认证会话必须在 Gateway 的 `authentication_timeout` 内完成认证。普通请求还会
 受到全局和按路由令牌桶、有界队列、载荷限制、Handler 超时和空闲超时约束。
 
+认证路由 `1` 接受一次性的登录票据或重连票据：
+
+```json
+{ "ticket": "signed-ticket" }
+```
+
+响应包含 `session_id`、`identity` 和下一张重连票据：
+
+```json
+{
+  "session_id": "0195d8f4-48e8-7c42-b91c-c5d42b055cf5",
+  "identity": {
+    "account_id": 10,
+    "user_id": 20,
+    "region_id": 1,
+    "realm_id": 2,
+    "generation": 1
+  },
+  "reconnect": {
+    "ticket": "signed-reconnect-ticket",
+    "expires_in_seconds": 1800
+  }
+}
+```
+
+路由 `3` 只允许已认证会话调用。请求必须携带当前重连票据；Gateway 消费它后
+返回替代票据：
+
+```json
+{ "ticket": "current-reconnect-ticket" }
+```
+
+```json
+{
+  "ticket": "replacement-reconnect-ticket",
+  "expires_in_seconds": 1800
+}
+```
+
+真正的断线重连会建立新传输连接，并把保存的重连票据发送到路由 `1`；未认证
+连接不能调用路由 `3`。
+
 ## Request ID 与重试
 
 Request ID 由客户端生成，用于关联请求，且必须非零。Gateway 为近期完成的请求
-保留有界响应缓存，World 保留有界幂等缓存。重试应在配置的 TTL 内复用相同的
-Request ID 和路由。不要把这些内存缓存当作持久化的 Exactly-once 交付保证。
+保留有界响应缓存。重试应在配置的 TTL 内复用相同的 Request ID 和路由。不要把
+该内存缓存当作持久化的 Exactly-once 交付保证；需要幂等保证的业务操作应使用
+应用自有的持久键与事务约束。
 
 ## 兼容性
 

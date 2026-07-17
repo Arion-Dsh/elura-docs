@@ -15,17 +15,17 @@ without a token.
 
 | Method and path | Auth | Response |
 | --- | --- | --- |
-| `GET /healthz` | No | `204` |
-| `GET /readyz` | No | `204`, or `503` plus reason |
-| `GET /version` | No | Version/component JSON |
-| `GET /metrics` | Protected | Prometheus text |
-| `GET /debug/stats` | Protected | Runtime stats JSON |
-| `GET /debug/backend` | Protected | Gateway protection JSON or `404` |
-| `GET /debug/routes` | Protected | World route JSON or `404` |
+| `GET /elura/healthz` | No | `204` |
+| `GET /elura/readyz` | No | `204`, or `503` plus reason |
+| `GET /elura/version` | No | Version/component JSON |
+| `GET /elura/metrics` | Protected | Prometheus text |
+| `GET /elura/debug/stats` | Protected | Runtime stats JSON |
+| `GET /elura/debug/backend` | Protected | Gateway protection JSON or `404` |
+| `GET /elura/debug/routes` | Protected | World route JSON or `404` |
 
 ## Force logout
 
-`POST /admin/sessions/force-logout`
+`POST /elura/admin/sessions/force-logout`
 
 ```json
 {
@@ -44,7 +44,7 @@ The response contains the delivery count:
 
 ## Revoke account generation
 
-`POST /admin/sessions/revoke-account-version`
+`POST /elura/admin/sessions/revoke-account-version`
 
 ```json
 {
@@ -60,7 +60,7 @@ The response contains the delivery count:
 
 Create or replace a timed ban:
 
-`PUT /admin/admission/user-bans`
+`PUT /elura/admin/admission/user-bans`
 
 ```json
 {
@@ -75,12 +75,12 @@ Create or replace a timed ban:
 Remove it:
 
 ```text
-DELETE /admin/admission/user-bans/{region_id}/{realm_id}/{user_id}
+DELETE /elura/admin/admission/user-bans/{region_id}/{realm_id}/{user_id}
 ```
 
 ## IP bans
 
-`PUT /admin/admission/ip-bans/{ip}`
+`PUT /elura/admin/admission/ip-bans/{ip}`
 
 ```json
 {
@@ -89,11 +89,11 @@ DELETE /admin/admission/user-bans/{region_id}/{realm_id}/{user_id}
 }
 ```
 
-Remove it with `DELETE /admin/admission/ip-bans/{ip}`.
+Remove it with `DELETE /elura/admin/admission/ip-bans/{ip}`.
 
 ## Maintenance mode
 
-`PUT /admin/admission/maintenance`
+`PUT /elura/admin/admission/maintenance`
 
 ```json
 {
@@ -102,7 +102,7 @@ Remove it with `DELETE /admin/admission/ip-bans/{ip}`.
 }
 ```
 
-Clear it with `DELETE /admin/admission/maintenance`.
+Clear it with `DELETE /elura/admin/admission/maintenance`.
 
 ## Status codes
 

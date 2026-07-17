@@ -2,7 +2,8 @@
 
 The generated application starts with in-memory state and DNS discovery. Add
 shared adapters only for behaviors that must span processes or survive process
-replacement.
+replacement. This guide reviews a complete distributed bundle; use the
+[Adapters catalog](/adapters/) for implementation-specific details.
 
 ## Capability map
 
@@ -12,6 +13,7 @@ replacement.
 | World registration | `WorldRegistrar` | Redis |
 | Authentication replay protection | `ReplayStore` | Memory, Redis |
 | Online session directory | `OnlineDirectory` | Memory, Redis |
+| Online Session/user totals | `OnlineStatsReader` | Memory, Redis |
 | Cross-Gateway push | `PushTransport` | Redis Streams |
 | Kick/revoke active sessions | `SessionControlTransport` | Redis Streams |
 | Account generation | `AccountVersionStore` | Memory, Redis, SQL |
@@ -53,6 +55,12 @@ RedisStreamPushBus        (for cross-Gateway pushes)
         +
 shared ReplayStore        (for horizontally scaled ticket verification)
 ```
+
+`RedisOnlineDirectory` implements both `OnlineDirectory` and
+`OnlineStatsReader`, so it also implements `OnlineBackend` automatically. Keep
+one shared `Arc`, inject its directory capability into Gateway, and expose its
+statistics capability to application HTTP services or workers. See
+[Online presence](/adapters/online).
 
 The generated Gateway uses an in-memory replay store. Keep it at one replica
 until the application injects a shared replay store; otherwise the same ticket

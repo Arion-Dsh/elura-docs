@@ -37,14 +37,34 @@ scaffolds. Existing customized files are preserved by default.
 | `sdk/typescript/` | TypeScript ES module | Node test runner and type check |
 
 All three implement frame encoding, exact-message decoding, TCP stream
-reassembly, reserved routes, standard errors, built-in Gateway payloads, and
-Session Control protobuf encoding. They also include
+reassembly, reserved routes, standard errors, authentication and reconnect
+payloads, and Session Control protobuf encoding. TypeScript and C# provide JSON
+encoders and decoders for those built-in payloads; C++ exposes the matching
+model structs for the application's selected JSON library. They also include
 `proto/session_control.proto` for applications that prefer generated protobuf
 types.
 
 The SDKs intentionally do **not** open sockets or dispatch application routes.
-Your client still owns connection lifecycle, reconnect policy, request
-correlation, and encoding for routes `100+`.
+Your client still owns connection lifecycle, renewal scheduling, reconnect
+backoff, request correlation, and encoding for routes `100+`.
+
+## Silent reconnect flow
+
+1. Decode the route `1` authentication response and securely retain only
+   `response.reconnect.ticket`.
+2. Schedule renewal before `response.reconnect.expires_in_seconds` elapses.
+3. While connected, send the current ticket as `ReconnectTicketRequest` to
+   route `3`. TypeScript and C# expose `encodeReconnectRequest(currentTicket)`;
+   C++ applications serialize the provided model with their JSON library.
+4. Replace the stored ticket only after decoding the successful renewal
+   response.
+5. After a disconnect, open a new transport and call route `1` with the stored
+   reconnect ticket. Save the reconnect ticket from the new authentication
+   response.
+6. If no valid reconnect ticket exists, obtain a login ticket from the
+   application login service through its refresh-session flow.
+
+The ticket is a credential. Keep it out of logs and application telemetry.
 
 ## Transport contract
 

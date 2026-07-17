@@ -9,7 +9,10 @@ Workspace 被拆分为职责明确的 Crate。多数应用只需依赖 `elura` �
 | --- | --- | --- |
 | `elura` | 统一门面与功能选择 | 是，推荐 |
 | `elura-core` | 协议、会话、路由、票据和实时通信原语 | 低层集成时使用 |
-| `elura-runtime` | Gateway、World、传输、Launcher 和可观测性 | 通常通过 `elura` |
+| `elura-runtime` | 生命周期、安全、管理服务和可观测性 | 通常通过 `elura` |
+| `elura-gateway` | 客户端连接与会话运行时 | 通常通过 `elura` |
+| `elura-world` | 命令与玩家状态运行时 | 通常通过 `elura` |
+| `elura-monolith` | 单进程 Gateway 与 World 组合 | 通常通过 `elura` |
 | `elura-adapters` | Redis、SQL、DNS、Kubernetes、Outbox 适配器 | 通常通过 `elura` |
 | `elura-providers` | 身份、OTP、短信和支付 Provider | 通常通过 `elura` |
 | `elura-cli` | 项目脚手架命令 | 作为工具安装 |
@@ -18,16 +21,20 @@ Workspace 被拆分为职责明确的 Crate。多数应用只需依赖 `elura` �
 
 ## 门面功能
 
-`elura` 默认启用 `runtime`，而 `runtime` 包含 `core`。
+`elura` 默认启用 `gateway` 与 `world`。两者都包含 `runtime`，而 `runtime`
+包含 `core`。
 
 | Feature | 启用内容 |
 | --- | --- |
 | `core` | `elura-core` |
 | `runtime` | `core`、`elura-runtime` |
+| `gateway` | `runtime`、`elura-gateway` |
+| `world` | `runtime`、`elura-world` |
+| `monolith` | `gateway`、`world`、`elura-monolith` |
 | `adapters` | `runtime`、基础 `elura-adapters` |
-| `redis` | `adapters`、Redis 适配器实现 |
+| `redis` | `adapters`、`gateway`、`world`、Redis 适配器实现 |
 | `sql` | `adapters`、SQL 适配器实现 |
-| `kubernetes` | `adapters`、Kubernetes 适配器实现 |
+| `kubernetes` | `adapters`、`gateway`、Kubernetes 适配器实现 |
 | `admin` | `adapters`、适配器支持的管理能力 |
 | `providers` | `core`、基础 `elura-providers` |
 | `identity` | 身份 Provider 集合 |
@@ -50,14 +57,22 @@ Workspace 被拆分为职责明确的 Crate。多数应用只需依赖 `elura` �
 
 ```rust
 use elura::prelude::{
-    GatewayLaunchConfig, GatewayLauncher, Identity, WorldBuilder, WorldContext,
+    AdminServerConfig, Gateway, GatewayConfig, Identity, OnlineBackend,
+    OnlineDirectory, OnlineStatsReader, Route, SessionEvent, SessionObserver,
+    TcpConfig, TcpTransport, World, WorldConfig, WorldContext,
 };
+```
+
+在线契约位于 Prelude，具体 Backend 仍需显式导入：
+
+```rust
+use elura::adapters::online::RedisOnlineDirectory; // `redis`
 ```
 
 需要在调用处明确职责时，使用领域模块：
 
 ```rust
-use elura::world::{WorldBuilder, WorldModule};
+use elura::world::{World, WorldModule, WorldModuleRegistry};
 use elura::world::middleware::LoggingMiddleware;
 use elura::world::testing::WorldHarness;
 use elura::gateway::GatewayInfrastructure;
@@ -67,8 +82,8 @@ use elura::gateway::GatewayInfrastructure;
 命名空间导入：
 
 ```rust
-use elura::adapters::discovery::DnsWorldDiscoveryConfig;
-use elura::adapters::redis::RedisReplayStore; // `redis`
+use elura::adapters::discovery::{DnsWorldDiscovery, DnsWorldDiscoveryConfig};
+use elura::adapters::replay::RedisReplayStore; // `redis`
 use elura::providers::identity::GuestProvider; // `identity`
 use elura::providers::payment::WechatPayPayment; // `payment-wechat-pay`
 ```
@@ -82,19 +97,20 @@ use elura::providers::payment::WechatPayPayment; // `payment-wechat-pay`
 
 ```toml
 # Gateway + World runtime only (default)
-elura = "0.1.1"
+elura = "0.2.2"
 
 # Generated split project with DNS discovery types
-elura = { version = "0.1.1", features = ["adapters"] }
+elura = { version = "0.2.2", features = ["adapters"] }
 
 # Redis-backed distributed application
-elura = { version = "0.1.1", features = ["redis"] }
+elura = { version = "0.2.2", features = ["redis"] }
 
 # Kubernetes discovery and SQL account versions
-elura = { version = "0.1.1", features = ["kubernetes", "sql"] }
+elura = { version = "0.2.2", features = ["kubernetes", "sql"] }
 ```
 
-在 `0.x` 阶段应锁定精确兼容版本，并在升级前查看 Release Notes。
+CLI 会把自身对应的 Elura 精确版本写入生成清单。请让 CLI 与门面 Crate 使用同一
+Release，确保生成源码与导入 API 一致。
 
 ## Rustdoc
 

@@ -24,6 +24,8 @@ and availability requirements.
 
 - [ ]  Multiple Gateways share a replay store.
 - [ ]  Duplicate-login policy has the required online and session-control transports.
+- [ ]  Online dashboards distinguish authenticated Sessions from users deduplicated by `user_id`.
+- [ ]  Durable presence projections reconcile against lease expiry instead of relying only on `SessionObserver`.
 - [ ]  Cross-Gateway push is configured when business logic requires it.
 - [ ]  Discovery removes unready/terminated Worlds promptly.
 - [ ]  Stateful Worlds use an ownership and epoch strategy.

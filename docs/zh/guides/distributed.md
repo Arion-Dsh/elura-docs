@@ -1,7 +1,8 @@
 # 分布式基础设施
 
 生成的应用以进程内状态和 DNS 服务发现起步。只有当某项行为需要跨进程共享
-或在进程替换后保留时，才添加共享适配器。
+或在进程替换后保留时，才添加共享适配器。本页复核完整的分布式组合；具体实现
+细节请查看 [Adapters 目录](/zh/adapters/)。
 
 ## 能力矩阵
 
@@ -11,6 +12,7 @@
 | World 注册 | `WorldRegistrar` | Redis |
 | 认证防重放 | `ReplayStore` | 内存、Redis |
 | 在线会话目录 | `OnlineDirectory` | 内存、Redis |
+| 在线 Session/用户统计 | `OnlineStatsReader` | 内存、Redis |
 | 跨 Gateway Push | `PushTransport` | Redis Streams |
 | 踢出/撤销活跃会话 | `SessionControlTransport` | Redis Streams |
 | 账户版本 | `AccountVersionStore` | 内存、Redis、SQL |
@@ -50,6 +52,10 @@ RedisStreamPushBus        （跨 Gateway Push）
 共享 ReplayStore          （水平扩展票据验证）
 ```
 
+`RedisOnlineDirectory` 同时实现 `OnlineDirectory` 和 `OnlineStatsReader`，因此
+会自动实现 `OnlineBackend`。应用应保留同一个共享 `Arc`，把目录能力注入 Gateway，
+把统计能力提供给应用 HTTP 服务或 Worker。参见[在线状态](/zh/adapters/online)。
+
 生成的 Gateway 使用内存 Replay Store。在应用注入共享实现之前保持单副本，
 否则同一票据可能被不同副本分别接受。
 
@@ -64,7 +70,7 @@ Redis Cluster 中参与同一原子操作的 Key 必须使用兼容的 Hash Tag 
 
 ## Outbox
 
-Gateway 和 World Launcher 不会自动启动 Outbox Dispatcher。需要在同一事务中
+Gateway 和 World 不会自动启动 Outbox Dispatcher。需要在同一事务中
 写业务数据和事件的应用，必须显式构造、运行、观测并关闭所选 Dispatcher。
 
 ## 就绪检查
@@ -72,4 +78,3 @@ Gateway 和 World Launcher 不会自动启动 Outbox Dispatcher。需要在同�
 使用 `with_readiness_probe` 注册必要基础设施。当向进程发送新流量会失败或破坏
 正确性时，对应组件应影响 Readiness。不要因为临时依赖故障就让 Liveness 失败，
 否则重启循环可能放大事故。
-

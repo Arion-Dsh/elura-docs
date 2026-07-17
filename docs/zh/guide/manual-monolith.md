@@ -4,7 +4,7 @@ outline: 2
 
 # 手动搭建单体进程
 
-`MonolithLauncher` 在同一进程内运行 Gateway 与 World，并直接在内存中分发
+`Monolith` 在同一进程内运行 Gateway 与 World，并直接在内存中分发
 命令。它保留类型化 Handler 和公共客户端协议，但不需要内部令牌、World
 监听端口或服务发现。
 
@@ -27,7 +27,7 @@ publish = false
 
 [dependencies]
 prost = "0.14"
-elura = "0.1.1"
+elura = { version = "0.2.2", features = ["monolith"] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 tokio = { version = "1", features = ["macros", "rt-multi-thread", "signal"] }
@@ -35,7 +35,8 @@ tokio = { version = "1", features = ["macros", "rt-multi-thread", "signal"] }
 
 ## 2. 编写应用
 
-组合根加载一个 `MonolithLaunchConfig`，注册 World Handler 后启动组合运行时：
+组合根分别加载 Gateway、World、传输与管理配置，注册 World Handler 后启动
+组合运行时：
 
 ```rust [src/bin/monolith.rs]
 use std::{env, fs};
@@ -69,7 +70,10 @@ impl Route for Hello {
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
 struct AppConfig {
-    runtime: MonolithLaunchConfig,
+    gateway: GatewayConfig,
+    world: WorldConfig,
+    admin: AdminServerConfig,
+    tcp: TcpConfig,
 }
 
 impl AppConfig {
@@ -77,8 +81,8 @@ impl AppConfig {
         let path = env::var("APP_MONOLITH_CONFIG")
             .unwrap_or_else(|_| "config/monolith.json".into());
         let mut config: Self = serde_json::from_slice(&fs::read(path)?)?;
-        config.runtime.ticket.key = required_env("APP_TICKET_KEY")?;
-        config.runtime.admin.token = optional_env("APP_ADMIN_TOKEN");
+        config.gateway.ticket.key = required_env("APP_TICKET_KEY")?;
+        config.admin.token = optional_env("APP_ADMIN_TOKEN");
         Ok(config)
     }
 }
@@ -86,19 +90,15 @@ impl AppConfig {
 #[tokio::main]
 async fn main() -> elura::Result<()> {
     let app = AppConfig::load()?;
-    MonolithLauncher::new(app.runtime)?
-        .configure_world(|builder| {
-            builder.register(
-                Hello,
-                |_context, request| async move {
-                    Ok(HelloResponse {
-                        message: format!("Hello, {}!", request.name),
-                    })
-                },
-            )?;
-            Ok(())
-        })?
-        .run()
+    let tcp = TcpTransport::new(app.tcp)?;
+    Monolith::new(app.gateway, app.world)
+        .transport(tcp)
+        .route(Hello, |_context, request| async move {
+            Ok(HelloResponse {
+                message: format!("Hello, {}!", request.name),
+            })
+        })
+        .run(app.admin)
         .await
 }
 
@@ -115,24 +115,24 @@ fn optional_env(name: &str) -> Option<String> {
 
 ```json [config/monolith.json]
 {
-  "runtime": {
-    "gateway": {
-      "listen": "127.0.0.1:17000"
-    },
-    "world": {
-      "handler_timeout": { "secs": 5, "nanos": 0 },
-      "idempotency_ttl": { "secs": 30, "nanos": 0 },
-      "idempotency_capacity": 10000
-    },
+  "gateway": {
     "ticket": {
       "issuer": "game-login",
-      "audience": "game-gateway"
-    },
-    "admin": {
-      "listen": "127.0.0.1:17001",
-      "component": "monolith",
-      "instance_id": "monolith-local"
+      "audience": "game-gateway",
+      "login_ttl": { "secs": 60, "nanos": 0 },
+      "reconnect_ttl": { "secs": 1800, "nanos": 0 }
     }
+  },
+  "world": {
+    "handler_timeout": { "secs": 5, "nanos": 0 }
+  },
+  "admin": {
+    "listen": "127.0.0.1:17001",
+    "component": "monolith",
+    "instance_id": "monolith-local"
+  },
+  "tcp": {
+    "listen": "127.0.0.1:17000"
   }
 }
 ```
@@ -147,8 +147,8 @@ cargo run --bin monolith
 在另一个终端验证：
 
 ```bash
-curl -i http://127.0.0.1:17001/healthz
-curl -i http://127.0.0.1:17001/readyz
+curl -i http://127.0.0.1:17001/elura/healthz
+curl -i http://127.0.0.1:17001/elura/readyz
 ```
 
 两个端点都返回 `204 No Content`。命令在进程内分发，因此没有 World 网络端口。
@@ -156,7 +156,7 @@ curl -i http://127.0.0.1:17001/readyz
 ## 扩展到多进程
 
 迁移到拆分拓扑时，Handler 代码可以保持不变。将组合根替换为独立的
-`GatewayLauncher` 与 `WorldLauncher` 进程，加入内部令牌并显式选择服务发现。
+`Gateway` 与 `World` 进程，加入内部令牌并显式选择服务发现。
 
 - [手动拆分搭建](./manual-setup)
 - [手动分布式搭建](./manual-distributed)

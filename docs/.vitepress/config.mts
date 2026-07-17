@@ -4,179 +4,219 @@ const base = process.env.DOCS_BASE ?? '/'
 
 const enNav = [
   { text: 'Start', link: '/guide/quick-start' },
-  {
-    text: 'Build',
-    items: [
-      { text: 'Game routes', link: '/guides/world-development' },
-      { text: 'Client SDKs', link: '/guides/client-sdks' },
-      { text: 'Configuration', link: '/guides/configuration' },
-      { text: 'Providers', link: '/guides/providers' }
-    ]
-  },
-  {
-    text: 'Deploy',
-    items: [
-      { text: 'Distributed infrastructure', link: '/guides/distributed' },
-      { text: 'Deployment guide', link: '/guides/deployment' },
-      { text: 'Operations', link: '/guides/operations' }
-    ]
-  },
-  {
-    text: 'Reference',
-    items: [
-      { text: 'Architecture', link: '/concepts/architecture' },
-      { text: 'Feature flags', link: '/reference/crates-and-features' },
-      { text: 'Rust API (docs.rs)', link: 'https://docs.rs/elura' }
-    ]
-  }
+  { text: 'Guides', link: '/guides/world-development' },
+  { text: 'Adapters', link: '/adapters/' },
+  { text: 'Providers', link: '/providers/' },
+  { text: 'Reference', link: '/reference/crates-and-features' }
 ]
 
 const zhNav = [
   { text: '开始', link: '/zh/guide/quick-start' },
+  { text: '指南', link: '/zh/guides/world-development' },
+  { text: 'Adapters', link: '/zh/adapters/' },
+  { text: 'Providers', link: '/zh/providers/' },
+  { text: '参考', link: '/zh/reference/crates-and-features' }
+]
+
+const enStartSidebar = [
   {
-    text: '开发',
+    text: 'Start',
     items: [
-      { text: '游戏路由', link: '/zh/guides/world-development' },
-      { text: '客户端 SDK', link: '/zh/guides/client-sdks' },
-      { text: '配置', link: '/zh/guides/configuration' },
-      { text: '第三方服务', link: '/zh/guides/providers' }
+      { text: 'Overview', link: '/' },
+      { text: 'Quick start', link: '/guide/quick-start' },
+      { text: 'Generated project', link: '/guide/generated-project' }
     ]
   },
   {
-    text: '部署',
+    text: 'Manual setup',
     items: [
-      { text: '分布式基础设施', link: '/zh/guides/distributed' },
-      { text: '部署指南', link: '/zh/guides/deployment' },
-      { text: '运维', link: '/zh/guides/operations' }
-    ]
-  },
-  {
-    text: '参考',
-    items: [
-      { text: '架构', link: '/zh/concepts/architecture' },
-      { text: '功能开关', link: '/zh/reference/crates-and-features' },
-      { text: 'Rust API（docs.rs）', link: 'https://docs.rs/elura' }
+      { text: 'Single process', link: '/guide/manual-monolith' },
+      { text: 'Split Gateway and World', link: '/guide/manual-setup' },
+      { text: 'Distributed setup', link: '/guide/manual-distributed' }
     ]
   }
 ]
 
-const enSidebar = [
+const enProvidersSidebar = [{
+  text: 'Providers',
+  items: [
+    { text: 'Overview', link: '/providers/' },
+    { text: 'Identity', link: '/providers/identity' },
+    { text: 'OTP', link: '/providers/otp' },
+    { text: 'Notifications', link: '/providers/notifications' },
+    { text: 'Payments', link: '/providers/payments' },
+    { text: 'Custom providers', link: '/providers/custom' }
+  ]
+}]
+
+const enAdaptersSidebar = [{
+  text: 'Adapters',
+  items: [
+    { text: 'Overview', link: '/adapters/' },
+    { text: 'Discovery', link: '/adapters/discovery' },
+    { text: 'Shared state', link: '/adapters/state' },
+    { text: 'Online presence', link: '/adapters/online' },
+    { text: 'Messaging and control', link: '/adapters/messaging' },
+    { text: 'Admission', link: '/adapters/admission' },
+    { text: 'Outbox', link: '/adapters/outbox' },
+    { text: 'Kubernetes', link: '/adapters/kubernetes' },
+    { text: 'Redis operations', link: '/adapters/redis' },
+    { text: 'Custom adapters', link: '/adapters/custom' }
+  ]
+}]
+
+const enGuidesSidebar = [
   {
-    text: 'Start here',
-    collapsed: false,
-    items: [
-      { text: 'Overview', link: '/' },
-      { text: 'Quick start', link: '/guide/quick-start' },
-      { text: 'Manual single process', link: '/guide/manual-monolith' },
-      { text: 'Manual split setup', link: '/guide/manual-setup' },
-      { text: 'Manual distributed setup', link: '/guide/manual-distributed' },
-      { text: 'Generated project', link: '/guide/generated-project' },
-      { text: 'Architecture overview', link: '/concepts/architecture' }
-    ]
-  },
-  {
-    text: 'Build your game',
-    collapsed: false,
+    text: 'Build',
     items: [
       { text: 'World modules and routes', link: '/guides/world-development' },
-      { text: 'Client protocol SDKs', link: '/guides/client-sdks' },
-      { text: 'Configuration', link: '/guides/configuration' },
-      { text: 'Providers', link: '/guides/providers' }
+      { text: 'Client transports', link: '/guides/transports' },
+      { text: 'Application HTTP', link: '/guides/application-http' },
+      { text: 'Client SDKs', link: '/guides/client-sdks' },
+      { text: 'Configuration', link: '/guides/configuration' }
     ]
   },
   {
-    text: 'Scale and ship',
-    collapsed: true,
+    text: 'Ship',
     items: [
       { text: 'Distributed infrastructure', link: '/guides/distributed' },
       { text: 'Deployment', link: '/guides/deployment' },
       { text: 'Operations', link: '/guides/operations' }
     ]
-  },
-  {
-    text: 'How it works',
-    collapsed: true,
-    items: [
-      { text: 'Sessions and routing', link: '/concepts/sessions-and-routing' },
-      { text: 'ELR2 protocol', link: '/concepts/protocol' }
-    ]
-  },
-  {
-    text: 'Reference',
-    collapsed: true,
-    items: [
-      { text: 'CLI commands', link: '/guide/cli' },
-      { text: 'Features and imports', link: '/reference/crates-and-features' },
-      { text: 'Environment variables', link: '/reference/environment' },
-      { text: 'Admin HTTP API', link: '/reference/admin-api' },
-      { text: 'Production checklist', link: '/reference/production-checklist' }
-    ]
-  },
-  {
-    text: 'Project',
-    collapsed: true,
-    items: [{ text: 'Contributing', link: '/contributing' }]
   }
 ]
 
-const zhSidebar = [
+const enConceptsSidebar = [{
+  text: 'Concepts',
+  items: [
+    { text: 'Architecture', link: '/concepts/architecture' },
+    { text: 'Sessions and routing', link: '/concepts/sessions-and-routing' },
+    { text: 'ELR2 protocol', link: '/concepts/protocol' }
+  ]
+}]
+
+const enReferenceSidebar = [{
+  text: 'Reference',
+  items: [
+    { text: 'Features and imports', link: '/reference/crates-and-features' },
+    { text: 'Environment variables', link: '/reference/environment' },
+    { text: 'Admin HTTP API', link: '/reference/admin-api' },
+    { text: 'Production checklist', link: '/reference/production-checklist' },
+    { text: 'CLI commands', link: '/guide/cli' },
+    { text: 'Rust API (docs.rs)', link: 'https://docs.rs/elura' }
+  ]
+}]
+
+const zhStartSidebar = [
   {
-    text: '从这里开始',
-    collapsed: false,
+    text: '开始',
     items: [
       { text: '概览', link: '/zh/' },
       { text: '快速开始', link: '/zh/guide/quick-start' },
-      { text: '手动单体搭建', link: '/zh/guide/manual-monolith' },
-      { text: '手动拆分搭建', link: '/zh/guide/manual-setup' },
-      { text: '手动分布式搭建', link: '/zh/guide/manual-distributed' },
-      { text: '生成的项目', link: '/zh/guide/generated-project' },
-      { text: '架构概览', link: '/zh/concepts/architecture' }
+      { text: '生成的项目', link: '/zh/guide/generated-project' }
     ]
   },
   {
-    text: '开发游戏',
-    collapsed: false,
+    text: '手动搭建',
+    items: [
+      { text: '单进程', link: '/zh/guide/manual-monolith' },
+      { text: '拆分 Gateway 与 World', link: '/zh/guide/manual-setup' },
+      { text: '分布式', link: '/zh/guide/manual-distributed' }
+    ]
+  }
+]
+
+const zhProvidersSidebar = [{
+  text: 'Providers',
+  items: [
+    { text: '概览', link: '/zh/providers/' },
+    { text: '身份认证', link: '/zh/providers/identity' },
+    { text: 'OTP', link: '/zh/providers/otp' },
+    { text: '通知', link: '/zh/providers/notifications' },
+    { text: '支付', link: '/zh/providers/payments' },
+    { text: '自定义 Provider', link: '/zh/providers/custom' }
+  ]
+}]
+
+const zhAdaptersSidebar = [{
+  text: 'Adapters',
+  items: [
+    { text: '概览', link: '/zh/adapters/' },
+    { text: '服务发现', link: '/zh/adapters/discovery' },
+    { text: '共享状态', link: '/zh/adapters/state' },
+    { text: '在线状态', link: '/zh/adapters/online' },
+    { text: '消息与控制', link: '/zh/adapters/messaging' },
+    { text: '准入控制', link: '/zh/adapters/admission' },
+    { text: 'Outbox', link: '/zh/adapters/outbox' },
+    { text: 'Kubernetes', link: '/zh/adapters/kubernetes' },
+    { text: 'Redis 运维', link: '/zh/adapters/redis' },
+    { text: '自定义 Adapter', link: '/zh/adapters/custom' }
+  ]
+}]
+
+const zhGuidesSidebar = [
+  {
+    text: '开发',
     items: [
       { text: 'World 模块与路由', link: '/zh/guides/world-development' },
-      { text: '客户端协议 SDK', link: '/zh/guides/client-sdks' },
-      { text: '配置', link: '/zh/guides/configuration' },
-      { text: '第三方服务', link: '/zh/guides/providers' }
+      { text: '客户端传输', link: '/zh/guides/transports' },
+      { text: '应用 HTTP', link: '/zh/guides/application-http' },
+      { text: '客户端 SDK', link: '/zh/guides/client-sdks' },
+      { text: '配置', link: '/zh/guides/configuration' }
     ]
   },
   {
-    text: '扩展与交付',
-    collapsed: true,
+    text: '交付',
     items: [
       { text: '分布式基础设施', link: '/zh/guides/distributed' },
       { text: '部署', link: '/zh/guides/deployment' },
       { text: '运维', link: '/zh/guides/operations' }
     ]
-  },
-  {
-    text: '工作原理',
-    collapsed: true,
-    items: [
-      { text: '会话与路由', link: '/zh/concepts/sessions-and-routing' },
-      { text: 'ELR2 协议', link: '/zh/concepts/protocol' }
-    ]
-  },
-  {
-    text: '参考',
-    collapsed: true,
-    items: [
-      { text: 'CLI 命令', link: '/zh/guide/cli' },
-      { text: '功能开关与导入', link: '/zh/reference/crates-and-features' },
-      { text: '环境变量', link: '/zh/reference/environment' },
-      { text: '管理 HTTP API', link: '/zh/reference/admin-api' },
-      { text: '生产检查清单', link: '/zh/reference/production-checklist' }
-    ]
-  },
-  {
-    text: '项目',
-    collapsed: true,
-    items: [{ text: '贡献文档', link: '/zh/contributing' }]
   }
 ]
+
+const zhConceptsSidebar = [{
+  text: '概念',
+  items: [
+    { text: '架构', link: '/zh/concepts/architecture' },
+    { text: '会话与路由', link: '/zh/concepts/sessions-and-routing' },
+    { text: 'ELR2 协议', link: '/zh/concepts/protocol' }
+  ]
+}]
+
+const zhReferenceSidebar = [{
+  text: '参考',
+  items: [
+    { text: '功能开关与导入', link: '/zh/reference/crates-and-features' },
+    { text: '环境变量', link: '/zh/reference/environment' },
+    { text: '管理 HTTP API', link: '/zh/reference/admin-api' },
+    { text: '生产检查清单', link: '/zh/reference/production-checklist' },
+    { text: 'CLI 命令', link: '/zh/guide/cli' },
+    { text: 'Rust API（docs.rs）', link: 'https://docs.rs/elura' }
+  ]
+}]
+
+const enSidebar = {
+  '/providers/': enProvidersSidebar,
+  '/adapters/': enAdaptersSidebar,
+  '/guides/': enGuidesSidebar,
+  '/concepts/': enConceptsSidebar,
+  '/reference/': enReferenceSidebar,
+  '/guide/cli': enReferenceSidebar,
+  '/guide/': enStartSidebar,
+  '/': enStartSidebar
+}
+
+const zhSidebar = {
+  '/zh/providers/': zhProvidersSidebar,
+  '/zh/adapters/': zhAdaptersSidebar,
+  '/zh/guides/': zhGuidesSidebar,
+  '/zh/concepts/': zhConceptsSidebar,
+  '/zh/reference/': zhReferenceSidebar,
+  '/zh/guide/cli': zhReferenceSidebar,
+  '/zh/guide/': zhStartSidebar,
+  '/zh/': zhStartSidebar
+}
 
 export default defineConfig({
   title: 'Elura',

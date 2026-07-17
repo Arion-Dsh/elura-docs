@@ -48,7 +48,8 @@ elura init module --name inventory --dir .
 ```
 
 This creates `src/world/inventory/mod.rs`. Add the new module to the
-application’s module tree and register it with `WorldBuilder`.
+application’s module tree and install it with `World::install` (or
+`Monolith::install`).
 
 ## Generate a route
 

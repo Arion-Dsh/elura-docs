@@ -4,7 +4,7 @@ outline: 2
 
 # Manual single-process setup
 
-`MonolithLauncher` runs Gateway and World in one process with direct in-memory
+`Monolith` runs Gateway and World in one process with direct in-memory
 dispatch. It keeps typed handlers and the public client protocol, but removes
 the internal token, World listener, and service discovery.
 
@@ -28,7 +28,7 @@ publish = false
 
 [dependencies]
 prost = "0.14"
-elura = "0.1.1"
+elura = { version = "0.2.2", features = ["monolith"] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 tokio = { version = "1", features = ["macros", "rt-multi-thread", "signal"] }
@@ -36,8 +36,9 @@ tokio = { version = "1", features = ["macros", "rt-multi-thread", "signal"] }
 
 ## 2. Write the application
 
-The composition root loads one `MonolithLaunchConfig` and registers World
-handlers before starting the combined runtime:
+The composition root loads separate Gateway, World, transport, and admin
+configuration, then registers World handlers before starting the combined
+runtime:
 
 ```rust [src/bin/monolith.rs]
 use std::{env, fs};
@@ -71,7 +72,10 @@ impl Route for Hello {
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
 struct AppConfig {
-    runtime: MonolithLaunchConfig,
+    gateway: GatewayConfig,
+    world: WorldConfig,
+    admin: AdminServerConfig,
+    tcp: TcpConfig,
 }
 
 impl AppConfig {
@@ -79,8 +83,8 @@ impl AppConfig {
         let path = env::var("APP_MONOLITH_CONFIG")
             .unwrap_or_else(|_| "config/monolith.json".into());
         let mut config: Self = serde_json::from_slice(&fs::read(path)?)?;
-        config.runtime.ticket.key = required_env("APP_TICKET_KEY")?;
-        config.runtime.admin.token = optional_env("APP_ADMIN_TOKEN");
+        config.gateway.ticket.key = required_env("APP_TICKET_KEY")?;
+        config.admin.token = optional_env("APP_ADMIN_TOKEN");
         Ok(config)
     }
 }
@@ -88,19 +92,15 @@ impl AppConfig {
 #[tokio::main]
 async fn main() -> elura::Result<()> {
     let app = AppConfig::load()?;
-    MonolithLauncher::new(app.runtime)?
-        .configure_world(|builder| {
-            builder.register(
-                Hello,
-                |_context, request| async move {
-                    Ok(HelloResponse {
-                        message: format!("Hello, {}!", request.name),
-                    })
-                },
-            )?;
-            Ok(())
-        })?
-        .run()
+    let tcp = TcpTransport::new(app.tcp)?;
+    Monolith::new(app.gateway, app.world)
+        .transport(tcp)
+        .route(Hello, |_context, request| async move {
+            Ok(HelloResponse {
+                message: format!("Hello, {}!", request.name),
+            })
+        })
+        .run(app.admin)
         .await
 }
 
@@ -117,24 +117,24 @@ fn optional_env(name: &str) -> Option<String> {
 
 ```json [config/monolith.json]
 {
-  "runtime": {
-    "gateway": {
-      "listen": "127.0.0.1:17000"
-    },
-    "world": {
-      "handler_timeout": { "secs": 5, "nanos": 0 },
-      "idempotency_ttl": { "secs": 30, "nanos": 0 },
-      "idempotency_capacity": 10000
-    },
+  "gateway": {
     "ticket": {
       "issuer": "game-login",
-      "audience": "game-gateway"
-    },
-    "admin": {
-      "listen": "127.0.0.1:17001",
-      "component": "monolith",
-      "instance_id": "monolith-local"
+      "audience": "game-gateway",
+      "login_ttl": { "secs": 60, "nanos": 0 },
+      "reconnect_ttl": { "secs": 1800, "nanos": 0 }
     }
+  },
+  "world": {
+    "handler_timeout": { "secs": 5, "nanos": 0 }
+  },
+  "admin": {
+    "listen": "127.0.0.1:17001",
+    "component": "monolith",
+    "instance_id": "monolith-local"
+  },
+  "tcp": {
+    "listen": "127.0.0.1:17000"
   }
 }
 ```
@@ -149,8 +149,8 @@ cargo run --bin monolith
 Verify it from another terminal:
 
 ```bash
-curl -i http://127.0.0.1:17001/healthz
-curl -i http://127.0.0.1:17001/readyz
+curl -i http://127.0.0.1:17001/elura/healthz
+curl -i http://127.0.0.1:17001/elura/readyz
 ```
 
 Both endpoints return `204 No Content`. There is no World network port because
@@ -159,8 +159,8 @@ commands are dispatched in process.
 ## Move beyond one process
 
 The handler code can stay unchanged when moving to a split topology. Replace
-the composition root with separate `GatewayLauncher` and `WorldLauncher`
-processes, add an internal token, and select discovery explicitly.
+the composition root with separate `Gateway` and `World` processes, add an
+internal token, and select discovery explicitly.
 
 - [Manual split setup](./manual-setup)
 - [Manual distributed setup](./manual-distributed)

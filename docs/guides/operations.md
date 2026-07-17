@@ -1,15 +1,16 @@
 # Observability and operations
 
-Every standard launcher starts a private HTTP admin server alongside the game
-service. Separate ports keep operational traffic out of the ELR2 protocol path.
+Calling `run(AdminServerConfig)` on `Gateway`, `World`, or `Monolith` starts a
+private HTTP admin server alongside the game service. Separate ports keep
+operational traffic out of the ELR2 protocol path.
 
 ## Probe endpoints
 
 | Endpoint | Authentication | Success | Meaning |
 | --- | --- | --- | --- |
-| `GET /healthz` | None | `204` | Process and admin loop are alive |
-| `GET /readyz` | None | `204` | Process can accept new traffic |
-| `GET /version` | None | `200` JSON | Elura version, runtime, component, instance |
+| `GET /elura/healthz` | None | `204` | Process and admin loop are alive |
+| `GET /elura/readyz` | None | `204` | Process can accept new traffic |
+| `GET /elura/version` | None | `200` JSON | Elura version, runtime, component, instance |
 
 A failed readiness check returns `503` with a short reason. Use readiness to
 remove the process from traffic; use liveness only to recover a process that is
@@ -21,15 +22,15 @@ Metrics and debug endpoints require a bearer token when one is configured:
 
 ```bash
 curl -H "Authorization: Bearer $APP_ADMIN_TOKEN" \
-  http://127.0.0.1:17001/metrics
+  http://127.0.0.1:17001/elura/metrics
 ```
 
 | Endpoint | Purpose |
 | --- | --- |
-| `GET /metrics` | Prometheus text exposition |
-| `GET /debug/stats` | Runtime counters and current activity |
-| `GET /debug/backend` | Gateway circuit/concurrency state; may return `404` |
-| `GET /debug/routes` | Registered World route metadata; may return `404` |
+| `GET /elura/metrics` | Prometheus text exposition |
+| `GET /elura/debug/stats` | Runtime counters and current activity |
+| `GET /elura/debug/backend` | Gateway circuit/concurrency state; may return `404` |
+| `GET /elura/debug/routes` | Registered World route metadata; may return `404` |
 
 All JSON/debug responses use `Cache-Control: no-store`.
 
@@ -43,13 +44,18 @@ All JSON/debug responses use `Cache-Control: no-store`.
 - concurrency and circuit-breaker rejections;
 - transient backend failures and circuit openings.
 
+`elura_gateway_sessions_authenticated` is a per-Gateway Session gauge. Sum it
+across replicas for operational connection load, but do not present that sum as
+distinct players. Player-facing totals come from
+`OnlineStatsReader::stats(region_id, realm_id)`, whose `user_count`
+deduplicates by `user_id`. See [Online presence](/adapters/online).
+
 ## Important World signals
 
 - active versus total commands;
 - successful commands;
 - business and internal failures;
 - timeouts and recovered handler panics;
-- idempotency cache activity;
 - route readiness and registrar health.
 
 Alert on rates and sustained states, not isolated increments. A circuit that
@@ -68,8 +74,8 @@ status codes.
 
 ## Graceful shutdown
 
-Standard launchers listen for platform shutdown signals, stop accepting work,
-and coordinate Gateway/World/admin tasks. Kubernetes should provide a
+The application-facing `run` methods listen for platform shutdown signals,
+stop accepting work, and coordinate Gateway/World/admin tasks. Kubernetes should provide a
 termination grace period longer than the configured shutdown timeout and enough
 time for endpoint removal. A short `preStop` delay can reduce new connections
 during endpoint propagation.
@@ -103,10 +109,12 @@ normal deployment settings.
 
 ## Incident checks
 
-1. Check `/healthz`, `/readyz`, and `/version` on the affected instance.
-2. Capture `/debug/stats` and `/debug/backend` before restarting it.
+1. Check `/elura/healthz`, `/elura/readyz`, and `/elura/version` on the affected instance.
+2. Capture `/elura/debug/stats` and `/elura/debug/backend` before restarting it.
 3. Compare Gateway backend errors with World command failures and latency.
 4. Verify discovery targets and World readiness.
 5. Check Redis/SQL/Kubernetes adapter health separately.
-6. Confirm a rollout did not change route IDs, secrets, issuer/audience, TLS, or
+6. For stale presence, compare the application projection with live
+   `OnlineDirectory` leases and verify Redis TTL/renewal behavior.
+7. Confirm a rollout did not change route IDs, secrets, issuer/audience, TLS, or
 internal tokens incompatibly.

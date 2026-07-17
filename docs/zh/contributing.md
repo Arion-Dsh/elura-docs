@@ -1,6 +1,6 @@
-# 贡献文档
+# 贡献文档与集成
 
-本站使用 VitePress。说明应面向任务，并从相邻 `horizon-rs` 源码中获取默认值、
+本站使用 VitePress。说明应面向任务，并从相邻 Elura 源码仓库中获取默认值、
 限制、字段名称和 API 行为。
 
 ## 预览修改
@@ -45,3 +45,13 @@ npm run docs:build
 条目级 API 文档属于 Rustdoc。本站主要解释组件如何组合、如何运维，以及应用
 必须做出哪些取舍。
 
+## 贡献 Provider 与 Adapter
+
+欢迎向 [Elura 仓库](https://github.com/Arion-Dsh/horizon-rs)贡献可复用的
+Provider 和 Adapter。组织专有策略应留在应用中；实现公开协议或通用基础设施能力
+时，应优先提交上游 PR。
+
+提交代码前请遵循[Provider](/zh/providers/custom#贡献到上游)或
+[Adapter](/zh/adapters/custom#贡献到上游)清单。每个合入的集成都应保持 Opt-in、
+遵守核心契约语义、包含故障与安全测试、提供可审查的 Public API，并在同一变更中
+更新 Rustdoc 与中英文站点内容。

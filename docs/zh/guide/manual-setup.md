@@ -42,7 +42,7 @@ publish = false
 
 [dependencies]
 prost = "0.14"
-elura = { version = "0.1.1", features = ["adapters"] }
+elura = { version = "0.2.2", features = ["adapters"] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 tokio = { version = "1", features = ["macros", "rt-multi-thread", "signal"] }
@@ -87,7 +87,8 @@ impl Route for Hello {
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
 struct AppConfig {
-    runtime: WorldLaunchConfig,
+    runtime: WorldConfig,
+    admin: AdminServerConfig,
 }
 
 impl AppConfig {
@@ -95,8 +96,8 @@ impl AppConfig {
         let path = env::var("APP_WORLD_CONFIG")
             .unwrap_or_else(|_| "config/world.json".into());
         let mut config: Self = serde_json::from_slice(&fs::read(path)?)?;
-        config.runtime.internal_token = required_env("APP_INTERNAL_TOKEN")?;
-        config.runtime.admin.token = optional_env("APP_ADMIN_TOKEN");
+        config.runtime.internal_token = Some(required_env("APP_INTERNAL_TOKEN")?);
+        config.admin.token = optional_env("APP_ADMIN_TOKEN");
         Ok(config)
     }
 }
@@ -104,19 +105,13 @@ impl AppConfig {
 #[tokio::main]
 async fn main() -> elura::Result<()> {
     let app = AppConfig::load()?;
-    WorldLauncher::new(app.runtime)?
-        .configure(|builder| {
-            builder.register(
-                Hello,
-                |_context, request| async move {
-                    Ok(HelloResponse {
-                        message: format!("Hello, {}!", request.name),
-                    })
-                },
-            )?;
-            Ok(())
-        })?
-        .run()
+    World::new(app.runtime)
+        .route(Hello, |_context, request| async move {
+            Ok(HelloResponse {
+                message: format!("Hello, {}!", request.name),
+            })
+        })
+        .run(app.admin)
         .await
 }
 
@@ -140,14 +135,16 @@ Gateway 接收客户端连接并发现 World。具体 DNS Adapter 会明确出�
 ```rust [src/bin/gateway.rs]
 use std::{env, fs, sync::Arc};
 
-use elura::adapters::discovery::DnsWorldDiscoveryConfig;
+use elura::adapters::discovery::{DnsWorldDiscovery, DnsWorldDiscoveryConfig};
 use elura::prelude::*;
 use serde::Deserialize;
 
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
 struct AppConfig {
-    runtime: GatewayLaunchConfig,
+    runtime: GatewayConfig,
+    admin: AdminServerConfig,
+    tcp: TcpConfig,
     discovery: DnsWorldDiscoveryConfig,
 }
 
@@ -157,8 +154,8 @@ impl AppConfig {
             .unwrap_or_else(|_| "config/gateway.json".into());
         let mut config: Self = serde_json::from_slice(&fs::read(path)?)?;
         config.runtime.ticket.key = required_env("APP_TICKET_KEY")?;
-        config.runtime.internal_token = required_env("APP_INTERNAL_TOKEN")?;
-        config.runtime.admin.token = optional_env("APP_ADMIN_TOKEN");
+        config.runtime.internal_token = Some(required_env("APP_INTERNAL_TOKEN")?);
+        config.admin.token = optional_env("APP_ADMIN_TOKEN");
         Ok(config)
     }
 }
@@ -166,10 +163,12 @@ impl AppConfig {
 #[tokio::main]
 async fn main() -> elura::Result<()> {
     let app = AppConfig::load()?;
-    let discovery = Arc::new(app.discovery.build()?);
-    GatewayLauncher::new(app.runtime)?
-        .with_world_discovery(discovery)
-        .run()
+    let discovery = Arc::new(DnsWorldDiscovery::new(app.discovery)?);
+    let tcp = TcpTransport::new(app.tcp)?;
+    Gateway::new(app.runtime)
+        .transport(tcp)
+        .world_discovery(discovery)
+        .run(app.admin)
         .await
 }
 
@@ -192,14 +191,12 @@ Elura 本身不会读取 JSON 或环境变量。`AppConfig::load()` 是普通应
 ```json [config/world.json]
 {
   "runtime": {
-    "world": {
-      "listen": "127.0.0.1:18000"
-    },
-    "admin": {
-      "listen": "127.0.0.1:18001",
-      "component": "world",
-      "instance_id": "world-local"
-    }
+    "listen": "127.0.0.1:18000"
+  },
+  "admin": {
+    "listen": "127.0.0.1:18001",
+    "component": "world",
+    "instance_id": "world-local"
   }
 }
 ```
@@ -207,22 +204,24 @@ Elura 本身不会读取 JSON 或环境变量。`AppConfig::load()` 是普通应
 ```json [config/gateway.json]
 {
   "runtime": {
-    "gateway": {
-      "listen": "127.0.0.1:17000"
-    },
     "ticket": {
       "issuer": "game-login",
-      "audience": "game-gateway"
-    },
-    "admin": {
-      "listen": "127.0.0.1:17001",
-      "component": "gateway",
-      "instance_id": "gateway-local"
+      "audience": "game-gateway",
+      "login_ttl": { "secs": 60, "nanos": 0 },
+      "reconnect_ttl": { "secs": 1800, "nanos": 0 }
     },
     "world_routing": {
       "pool_size": 1,
       "max_in_flight_per_connection": 64
     }
+  },
+  "admin": {
+    "listen": "127.0.0.1:17001",
+    "component": "gateway",
+    "instance_id": "gateway-local"
+  },
+  "tcp": {
+    "listen": "127.0.0.1:17000"
   },
   "discovery": {
     "endpoint": "127.0.0.1:18000",
@@ -269,9 +268,9 @@ cargo run --bin gateway
 等待服务发现完成第一次刷新，然后检查私有管理端点：
 
 ```bash
-curl -i http://127.0.0.1:18001/healthz
-curl -i http://127.0.0.1:17001/healthz
-curl -i http://127.0.0.1:17001/readyz
+curl -i http://127.0.0.1:18001/elura/healthz
+curl -i http://127.0.0.1:17001/elura/healthz
+curl -i http://127.0.0.1:17001/elura/readyz
 ```
 
 健康端点返回 `204 No Content`。
