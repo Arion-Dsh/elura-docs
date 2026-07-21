@@ -19,6 +19,39 @@ validate the upstream protocol, bound untrusted responses, normalize identities
 or events, and return `ProviderError` with correct retryability. It should not
 issue Gateway tickets or mutate game state.
 
+## Usage example
+
+```rust
+use std::collections::HashMap;
+
+use async_trait::async_trait;
+use elura::providers::identity::{IdentityProvider, ProviderName, VerifiedIdentity};
+use elura::providers::ProviderResult;
+use serde_json::Value;
+
+struct CompanyIdentity;
+
+#[async_trait]
+impl IdentityProvider for CompanyIdentity {
+    fn name(&self) -> &str { "company" }
+
+    async fn authenticate(&self, credential: Value) -> ProviderResult<VerifiedIdentity> {
+        let subject = credential["subject"]
+            .as_str()
+            .ok_or(elura::providers::ProviderError::InvalidCredentials)?;
+        Ok(VerifiedIdentity {
+            provider: ProviderName::parse(self.name())?,
+            subject: subject.to_owned(),
+            union_id: None,
+            attributes: HashMap::new(),
+        })
+    }
+}
+```
+
+Real implementations must verify external evidence; accepting a subject field
+directly is only a shape example.
+
 ## Checklist
 
 - Use a lowercase stable provider name and reject duplicate registrations.
@@ -51,36 +84,3 @@ A Provider PR should include:
 The implementation must keep application account, order, and entitlement
 policy outside the shared crate. Explain any new dependency, maintenance burden,
 and upstream protocol source in the PR.
-
-## Example: identity provider skeleton
-
-```rust
-use std::collections::HashMap;
-
-use async_trait::async_trait;
-use elura::providers::identity::{IdentityProvider, ProviderName, VerifiedIdentity};
-use elura::providers::ProviderResult;
-use serde_json::Value;
-
-struct CompanyIdentity;
-
-#[async_trait]
-impl IdentityProvider for CompanyIdentity {
-    fn name(&self) -> &str { "company" }
-
-    async fn authenticate(&self, credential: Value) -> ProviderResult<VerifiedIdentity> {
-        let subject = credential["subject"]
-            .as_str()
-            .ok_or(elura::providers::ProviderError::InvalidCredentials)?;
-        Ok(VerifiedIdentity {
-            provider: ProviderName::parse(self.name())?,
-            subject: subject.to_owned(),
-            union_id: None,
-            attributes: HashMap::new(),
-        })
-    }
-}
-```
-
-Real implementations must verify external evidence; accepting a subject field
-directly is only a shape example.

@@ -1,4 +1,4 @@
-# CLI reference
+# CLI commands
 
 The `elura` binary is a project scaffolding tool. It never starts a server and
 does not modify existing files unless `--force` is supplied.

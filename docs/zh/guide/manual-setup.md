@@ -42,7 +42,7 @@ publish = false
 
 [dependencies]
 prost = "0.14"
-elura = { version = "0.2.2", features = ["adapters"] }
+elura = { version = "0.2.5", features = ["adapters"] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 tokio = { version = "1", features = ["macros", "rt-multi-thread", "signal"] }
@@ -282,4 +282,4 @@ curl -i http://127.0.0.1:17001/elura/readyz
 它不会添加隐藏运行时，也不会成为生产依赖。
 
 接下来可阅读 [World 模块与路由](/zh/guides/world-development) 来组织 Handler，
-或者在需要完整应用脚手架时查看 [CLI 参考](./cli)。
+或者在需要完整应用脚手架时查看 [CLI 命令](./cli)。

@@ -1,5 +1,5 @@
 ---
-outline: 2
+outline: [2, 3]
 ---
 
 # Notification providers
@@ -21,18 +21,13 @@ Keep credentials in a secret manager, use separate templates per purpose when
 required, and apply application-level send quotas. A successful provider API
 response means the request was accepted; it does not prove handset delivery.
 
-## Other channels
-
-Email, push, voice, and other SMS vendors are not built in. Implement
-`OtpSender` for OTP delivery or define an application contract when the message
-is not an OTP. See [Custom providers](./custom).
-
-## Example: Aliyun SMS sender
+### Usage example
 
 ```rust
-use std::collections::HashMap;
+use std::{collections::HashMap, sync::Arc};
 
 use elura::providers::notification::{AliSmsConfig, AliSmsSender};
+use elura::providers::otp::{OtpConfig, OtpService};
 
 let config = AliSmsConfig::new(
     access_key_id,
@@ -43,8 +38,19 @@ let config = AliSmsConfig::new(
         ("bind_phone".into(), "SMS_BIND_TEMPLATE".into()),
     ]),
 );
-let sender = AliSmsSender::new(config)?;
+let sender = Arc::new(AliSmsSender::new(config)?);
+let otp = OtpService::with_memory(
+    OtpConfig::default(),
+    otp_secret.to_vec(),
+    sender,
+)?;
 ```
 
-Pass `Arc::new(sender)` to `OtpService`; the OTP purpose selects the matching
-template.
+The OTP purpose selects the matching template. Use a shared `OtpStore` instead
+of `with_memory` before running multiple API replicas.
+
+## Other channels
+
+Email, push, voice, and other SMS vendors are not built in. Implement
+`OtpSender` for OTP delivery or define an application contract when the message
+is not an OTP. See [Custom providers](./custom).

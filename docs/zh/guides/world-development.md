@@ -122,20 +122,31 @@ elura init route --module inventory --name equip_item --id 120
 只有在重复执行同一请求安全时才返回可重试错误。重试时复用 Request ID，让
 幂等保护能够识别请求。
 
-## 测试
+## 业务测试
 
-构建 Fluent World，再使用 `WorldServer::harness()` 返回的 Harness 测试 Handler，
-无需打开 Socket：
+构建 Fluent World，再使用 `WorldServer::harness()` 返回的 Harness 测试 Handler
+和多步骤业务流程，无需打开 Socket：
 
 ```rust
+use elura::world::testing::test_identity;
+
 let harness = World::new(WorldConfig::default())
     .route(GetPlayerProfile, get_player_profile)
     .build()?
     .harness();
+
+let client = harness.client(test_identity(42))?;
+let response = client
+    .call(GetPlayerProfile, GetPlayerProfileRequest {})
+    .await?;
+assert_eq!(response.user_id, 42);
 ```
 
-其具体类型为 `elura::world::testing::WorldHarness`。类型化
-`call(route, identity, request)` 会编码请求并解码响应。至少覆盖：
+`WorldHarness` 从 `elura::world::testing` 导出。`WorldTestClient` 会在多次调用间
+保持同一 Identity 和 Session，自动分配 Request ID，并完成类型化路由消息的编解码。
+因此登录、查询背包、装备物品、再次读取玩家状态等流程都可以直接写成普通 Rust
+测试。需要指定 Session ID 时使用 `call_in_session`；只有协议与畸形 Payload 测试
+才使用 `command_raw`。至少覆盖：
 
 - 有效和无效 protobuf 载荷；
 - 身份与 Realm 授权；
@@ -143,6 +154,51 @@ let harness = World::new(WorldConfig::default())
 - 超时和可重试错误；
 - 事务回滚；
 - 预期的 Push 消息。
+
+### 可选 Transport 的全链路测试
+
+当 p99 必须包含客户端 Transport、Ticket 认证、Gateway 队列、Gateway→World
+连接池和 World 执行时，把 `elura-testkit` 添加为开发依赖：
+
+```toml
+[dev-dependencies]
+elura-testkit = "0.2.5"
+```
+
+```rust
+use elura_testkit::{
+    FullStackBuilder, FullStackLoadConfig, WebSocketTestTransport,
+    test_identity,
+};
+
+let harness = FullStackBuilder::loopback()?
+    .route(GetPlayerProfile, get_player_profile)
+    .start(WebSocketTestTransport::loopback()?)
+    .await?;
+
+let report = harness
+    .load_scenario(
+        FullStackLoadConfig::new(32, 1_000),
+        |worker| test_identity(worker as i64 + 1),
+        |client, _, _| async move {
+            client.call(GetPlayerProfile, GetPlayerProfileRequest {}).await?;
+            Ok(())
+        },
+    )
+    .await?;
+
+println!("transport={} p99={:?}", report.transport, report.operation_latency.p99);
+harness.shutdown().await?;
+```
+
+内置 TCP 和 WebSocket Connector 共用同一个业务客户端。通过 `TestTransport` 和
+`TestConnection` Trait，可以为 QUIC、WebTransport、UDP 与应用自定义 Transport
+提供配对的 Gateway 端与客户端实现。不同 Transport 的样本不能合并计算一个
+百分位。Loopback 结果是完整软件链路的基线；生产网络 p99 仍需从独立压测进程
+请求已部署环境。
+
+`WorldHarness` 有意不提供负载或百分位 API。它会绕过 Gateway 与 Transport
+处理，因此其耗时只适合辅助单元测试诊断，不能作为有效的全链路 p99。
 
 发布应用变更前运行：
 

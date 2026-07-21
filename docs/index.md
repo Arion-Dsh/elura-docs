@@ -28,6 +28,11 @@ features:
     details: Add Redis, SQL, DNS, Kubernetes, metrics, protection, and horizontal routing while keeping the same application boundary.
     link: /guides/deployment
     linkText: Design for production
+  - icon: "04"
+    title: Authoritative realtime gameplay
+    details: Compose fixed ticks, rooms, AOI, replication, prediction, interpolation, lag compensation, and reproducible weak-network tests.
+    link: /guides/realtime-gameplay
+    linkText: Build realtime systems
 ---
 
 ## Start with a generated application
@@ -71,7 +76,8 @@ when you want the full picture.
 | Build separate Gateway and World processes without the CLI | [Manual split setup](/guide/manual-setup) |
 | Assemble shared state and dynamic discovery | [Manual distributed setup](/guide/manual-distributed) |
 | Add my first game command | [World modules and routes](/guides/world-development) |
-| Add TCP, WebSocket, QUIC, or a custom client endpoint | [Client transports](/guides/transports) |
+| Build realtime rooms, AOI, prediction, or entity replication | [Realtime gameplay](/guides/realtime-gameplay) |
+| Add TCP, UDP, WebSocket, WebTransport, QUIC, or a custom client endpoint | [Client transports](/guides/transports) |
 | Add an Axum HTTP API or callback endpoint | [Application HTTP services](/guides/application-http) |
 | Connect a C++, C#, or TypeScript client | [Client protocol SDKs](/guides/client-sdks) |
 | Understand generated files | [Generated project](/guide/generated-project) |

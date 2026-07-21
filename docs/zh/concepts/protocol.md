@@ -70,15 +70,18 @@ protobuf 提供语言无关的应用请求与响应 Payload。
 
 ```json
 {
-  "code": "NOT_ENOUGH_GOLD",
-  "message": "金币不足",
-  "retryable": false
+  "code": "REALM_FULL",
+  "message": "所选 Realm 已满",
+  "retryable": true,
+  "retry_after_ms": 1000
 }
 ```
 
 `code` 只能包含大写 ASCII 字母、数字和下划线，最长 64 字节；`message` 最长
-1024 字节。Error 帧保留原请求的 Route、Request ID 和 Sequence。Error 是请求
-结果，因此 Request ID 不能为零；服务端主动通知应使用 `Push`。
+1024 字节。`retry_after_ms` 是可选字段，表示 `REALM_FULL` 等可重试错误建议的
+最短等待时间；字段缺失或为零时客户端也不得忙循环重试。Error 帧保留原请求的
+Route、Request ID 和 Sequence。Error 是请求结果，因此 Request ID 不能为零；
+服务端主动通知应使用 `Push`。
 
 ## 认证流程
 

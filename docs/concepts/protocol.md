@@ -76,16 +76,20 @@ canonical UTF-8 JSON error envelope:
 
 ```json
 {
-  "code": "NOT_ENOUGH_GOLD",
-  "message": "not enough gold",
-  "retryable": false
+  "code": "REALM_FULL",
+  "message": "the selected realm is at capacity",
+  "retryable": true,
+  "retry_after_ms": 1000
 }
 ```
 
 `code` uses uppercase ASCII letters, digits, and underscores and is at most 64
-bytes. `message` is at most 1024 bytes. The error frame keeps the original
-request's route, request ID, and sequence. Because an error is a request result,
-its request ID cannot be zero; server-initiated notifications use `Push`.
+bytes. `message` is at most 1024 bytes. `retry_after_ms` is optional and gives
+the minimum recommended delay for a retryable error such as `REALM_FULL`.
+Clients must not spin when it is absent or zero. The error frame keeps the
+original request's route, request ID, and sequence. Because an error is a
+request result, its request ID cannot be zero; server-initiated notifications
+use `Push`.
 
 ## Authentication sequence
 

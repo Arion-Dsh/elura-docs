@@ -1,5 +1,5 @@
 ---
-outline: [2, 3]
+outline: [2, 4]
 ---
 
 # Outbox Adapter
@@ -15,6 +15,18 @@ outline: [2, 3]
 `MemoryOutbox` 适合测试和单进程流程，不会跨进程替换保留，也不能与应用数据库
 事务原子提交。
 
+#### 使用示例
+
+```rust
+use elura::core::outbox::{MemoryOutbox, OutboxEvent, OutboxStore};
+
+let outbox = MemoryOutbox::new();
+let event = OutboxEvent::new("player.created", payload)?;
+outbox.append(event).await?;
+```
+
+只有在进程替换时丢失排队 Event 也可以接受的场景，才应使用它。
+
 ### Redis
 
 `RedisOutbox` 提供共享 Lease 与 Retry State，适合把 Redis 作为该事件链路的持久
@@ -22,11 +34,60 @@ outline: [2, 3]
 
 `RedisIdempotencyStore` 提供 Handler 幂等状态；TTL 应覆盖最长 Retry/Replay 窗口。
 
+#### 使用示例
+
+```rust
+use elura::adapters::outbox::RedisOutbox;
+use elura::core::outbox::{OutboxEvent, OutboxStore};
+
+let outbox = RedisOutbox::connect(redis_url, "game:outbox").await?;
+let event = OutboxEvent::new("player.entitlement-granted", payload)?;
+outbox.append(event).await?;
+```
+
+还需要为同一 Store 运行 `OutboxDispatcher` Worker；只 Append 不会执行 Handler。
+
 ### PostgreSQL 与 MySQL
 
 `SqlOutbox` 支持两种数据库，提供 `ensure_schema`，并通过
 `append_postgres_tx` / `append_mysql_tx` 将业务变更与 Event 放入调用方同一事务。
 业务记录本来就在同一 SQL 数据库时，应优先采用这个模式。
+
+#### 使用示例
+
+```rust
+use elura::adapters::outbox::SqlOutbox;
+use elura::core::outbox::{OutboxEvent, OutboxStore};
+
+let outbox = SqlOutbox::connect_postgres(postgres_url).await?;
+outbox.ensure_schema().await?;
+
+let event = OutboxEvent::new("player.entitlement-granted", payload)?;
+outbox.append(event).await?;
+```
+
+业务写需要原子提交时，应使用调用方的 `sqlx` Transaction：
+
+```rust
+use elura::adapters::outbox::SqlOutbox;
+use elura::core::outbox::OutboxEvent;
+
+let pool = sqlx::PgPool::connect(postgres_url).await?;
+let outbox = SqlOutbox::postgres(pool.clone());
+outbox.ensure_schema().await?;
+
+let mut tx = pool.begin().await?;
+sqlx::query("UPDATE players SET coins = coins + $1 WHERE id = $2")
+    .bind(100_i64)
+    .bind(player_id)
+    .execute(&mut *tx)
+    .await?;
+let event = OutboxEvent::new("player.coins-changed", payload)?;
+SqlOutbox::append_postgres_tx(&mut tx, &event).await?;
+tx.commit().await?;
+```
+
+`ensure_schema` 应由 Migration 流程管理，不要让所有应用副本并发运行。
 
 ## 管理接口
 
@@ -41,19 +102,3 @@ outline: [2, 3]
 - Handler 必须幂等，并区分可重试失败。
 - 监控 Dead Letter、Lease Loss、Lag 与最旧可用 Event。
 - 随应用生命周期优雅关闭 Dispatcher。
-
-## 示例：SQL Outbox
-
-```rust
-use elura::adapters::outbox::SqlOutbox;
-use elura::core::outbox::{OutboxEvent, OutboxStore};
-
-let outbox = SqlOutbox::connect_postgres(postgres_url).await?;
-outbox.ensure_schema().await?;
-
-let event = OutboxEvent::new("player.entitlement-granted", payload)?;
-outbox.append(event).await?;
-```
-
-业务写需要原子提交时，应在同一个 `sqlx` Transaction 中调用
-`SqlOutbox::append_postgres_tx`，而不是在事务提交后再调用 `append`。

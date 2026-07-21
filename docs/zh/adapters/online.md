@@ -13,7 +13,7 @@ API 按职责拆分：
 
 | 契约 | 职责 |
 | --- | --- |
-| `OnlineDirectory` | 注册、续租、移除、定位和分组存活的 Session Lease |
+| `OnlineDirectory` | 原子准入、续租、移除、定位和分组存活的 Session Lease |
 | `OnlineStatsReader` | 查询指定 Region/Realm 的 Session 数和去重用户数 |
 | `OnlineBackend` | 同时包含上述两个能力的便利组合 |
 | `SessionObserver` | 接收进程内 Session 生命周期变化 |
@@ -47,6 +47,10 @@ pub struct OnlineStats {
 `session_count` 统计已认证 Session；`user_count` 按 `user_id` 去重。同一玩家使用
 两个设备连接时计为两个 Session、一个用户。
 
+`OnlineAdmissionPolicy` 把重复登录策略与该 Session 所属 Region/Realm 的可选
+Session 硬上限组合起来；同一次原子操作通过 `OnlineAdmission` 返回 `Accepted`、
+`Duplicate` 或 `RealmFull`。
+
 ## 内置 Backend
 
 `MemoryOnlineDirectory` 是零依赖参考实现，适合测试、开发和单进程部署。
@@ -79,16 +83,18 @@ let stats: Arc<dyn OnlineStatsReader> = backend;
 Gateway 接收生命周期契约：
 
 ```rust
+let online_config = GatewayOnlineConfig::new(
+    "gateway-shanghai-1",
+    Duration::from_secs(45),
+    Duration::from_secs(15),
+    DuplicateLoginMode::AllowMultiple,
+)
+.with_realm_capacity(86, 1, 10_000);
+
 let gateway = Gateway::new(config)
     .replay_store(replay)
     .world_client(world)
-    .online_directory(
-        "gateway-shanghai-1",
-        directory.clone(),
-        Duration::from_secs(45),
-        Duration::from_secs(15),
-        DuplicateLoginMode::AllowMultiple,
-    );
+    .online_directory(directory.clone(), online_config);
 ```
 
 Lease 时间必须满足：
@@ -97,11 +103,11 @@ Lease 时间必须满足：
 0 < renew_interval < lease_ttl
 ```
 
-认证成功后 Gateway 注册 Lease 并定期续租；连接结束时注销 Lease，并释放单点登录
-占位。Gateway 未执行清理就消失时，Adapter 必须在 TTL 后停止返回该 Lease。
+认证过程中 Gateway 原子执行重复登录与 Realm 容量策略，并注册获准的 Lease；
+之后定期续租，连接结束时注销。Gateway 未执行清理就消失时，Adapter 必须在 TTL
+后停止返回该 Lease。
 
-应用通常只调用查询方法。`register`、`renew`、`unregister`、`claim_single` 和
-`release_single` 由 Gateway 管理。
+应用通常只调用查询方法。`acquire`、`renew` 和 `unregister` 由 Gateway 管理。
 
 ## 查询 Session 与在线人数
 
@@ -137,6 +143,19 @@ Gateway 支持：
 分布式 `KickExisting` 必须同时配置共享 `OnlineDirectory` 与
 `SessionControlTransport`。在线目录负责定位 Session，会话控制负责通知对应
 Gateway 关闭连接。
+
+## 登录排队与 Realm 容量
+
+上层应用负责排队顺序、优先级、排队 Token、位置与预计时间，以及轮询或通知。
+排队中的客户端不应长期占用匿名 Gateway 连接；只有队列允许发起认证时，才签发
+短有效期登录票据。
+
+Gateway 通过 `GatewayOnlineConfig` 和原子的 `OnlineDirectory::acquire` 执行最终
+硬上限。在线统计可用于展示和排队规划，但不能用作先查询、再注册的准入判断。
+
+所选 Realm 已满时，认证返回可重试的 `REALM_FULL` 错误并携带
+`retry_after_ms`。登录票据不会被消费，因此客户端可以在应用队列再次放行或指定
+延迟结束后，使用同一票据重试。
 
 ## Session 生命周期通知
 
@@ -203,7 +222,7 @@ struct PostgresOnlineDirectory {
 
 #[async_trait]
 impl OnlineDirectory for PostgresOnlineDirectory {
-    // 实现原子 Lease 生命周期、过期过滤、分组和单点登录 Fencing。
+    // 实现原子的重复登录与容量准入、Lease 生命周期、过期过滤和分组。
 }
 
 #[async_trait]
@@ -222,6 +241,6 @@ impl OnlineStatsReader for PostgresOnlineDirectory {
 
 ## 职责边界
 
-Elura 负责传输存活检测、Session 身份、Lease、重复登录协调和供应商无关查询。
-应用负责持久 `online` 投影、最后在线时间、好友通知、隐私规则、机器人过滤和
-状态对账任务。
+Elura 负责传输存活检测、Session 身份、Lease、原子的重复登录与硬容量准入，
+以及供应商无关查询。应用负责登录排队策略、持久 `online` 投影、最后在线时间、
+好友通知、隐私规则、机器人过滤和状态对账任务。

@@ -6,7 +6,7 @@ owns connections and sessions; a World owns business handlers and game state.
 ```text
                  public network                 private network
 
- Client ── ELR2/TCP, WebSocket, or QUIC ──> Gateway ── ELR2/TCP ──> World
+ Client ── TCP / UDP / WebSocket / WebTransport / QUIC ──> Gateway ── ELR2/TCP ──> World
                                       │   │                     │
                                       │   ├── discovery         ├── handlers
                                       │   ├── session state     ├── middleware
@@ -21,7 +21,7 @@ owns connections and sessions; a World owns business handlers and game state.
 
 The Gateway is the trust and connection boundary. It:
 
-- accepts TCP, WebSocket, QUIC, or application-defined client transports;
+- accepts TCP, UDP, WebSocket, WebTransport, QUIC, or application-defined client transports;
 - enforces connection, payload, queue, timeout, and rate limits;
 - validates authentication and reconnect tickets;
 - issues and rotates reconnect tickets for authenticated sessions;
@@ -57,6 +57,38 @@ The World is the private business execution boundary. It:
 The generated split application uses an internal bearer token. In a production
 network, combine that token with network policy and, where appropriate, TLS or
 mTLS.
+
+## Realtime gameplay layer
+
+World may host an optional `SceneRuntime` when multiple players mutate one
+match, room, or map partition. Each Scene has one bounded mailbox: commands,
+lifecycle hooks, and ticks execute serially inside that Scene, while different
+Scenes can run concurrently. Scene placement, distributed ownership,
+persistence, recovery, and game rules remain application policy.
+
+The gameplay primitives below do not depend on World and can also run in a
+standalone executor, test, or client-side Rust code:
+
+| Primitive | Responsibility |
+| --- | --- |
+| `Room` | Roster, readiness, leader succession, and lifecycle state |
+| `FixedStepClock` | Bounded deterministic simulation timing |
+| `AoiGrid` | Two-dimensional visibility queries and entered/left deltas |
+| Netcode | Tick estimation, redundant input, ACK/reordering, prediction, interpolation, and predicted entity matching |
+| Replication | Per-observer Spawn, Despawn, delta, keyframe, prediction-key, reorder, and ACK state |
+| `LagCompensationHistory` | Bounded immutable historical snapshots and validated rewind queries |
+| `SimulatedLink` | Deterministic latency, jitter, loss, duplication, reordering, bandwidth, and queue pressure |
+
+An authoritative action-game path normally queues accepted inputs by target
+Tick, consumes them from a fixed simulation step, updates AOI, records a compact
+collision snapshot, and emits one replication stream per observer. The client
+predicts its local entity, reconciles authoritative state, and interpolates
+remote entities.
+
+Elura owns the bounded protocol and timing machinery. The application owns
+movement, physics, abilities, AI, entity schemas, serialization, interpolation
+math, collision queries, hit and damage rules, and client presentation. See
+[Realtime gameplay](/guides/realtime-gameplay) for the complete composition.
 
 ## Runtime and application layers
 

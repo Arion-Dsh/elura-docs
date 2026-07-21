@@ -41,6 +41,9 @@ Payload 提供 JSON Encoder/Decoder；C++ 提供对应的模型 Struct，由应�
 JSON 库完成序列化。项目中还会包含
 `proto/session_control.proto`，便于希望自行生成 protobuf 类型的应用使用。
 
+标准错误模型包含可选的 `retry_after_ms`。收到可重试的 `REALM_FULL` 时，应回到
+上层应用登录队列，或至少等待该延迟；不得对 Gateway 认证进行忙循环重试。
+
 SDK 有意**不负责**打开 Socket 或分发应用路由。连接生命周期、续票调度、重连
 退避、请求关联以及 `100+` 路由的消息编码仍由客户端负责。
 
@@ -64,11 +67,17 @@ SDK 有意**不负责**打开 Socket 或分发应用路由。连接生命周期�
   帧，必须交给 SDK 提供的流式 Decoder。
 - 每个 WebSocket 二进制 Message 恰好包含一个 ELR2 帧，并协商
   `elura.v2` WebSocket 子协议。QUIC 使用相同字符串作为 ALPN。
+- 每个 UDP 或 WebTransport Datagram 恰好包含一帧完整 ELR2。对于 Best-effort
+  游戏消息，客户端需要实现序列、冗余、ACK 和恢复语义。
+- WebTransport 可靠双向 Stream 使用与 TCP、QUIC 相同的字节流 Framing 规则。
 - ELR2 不使用 WebSocket 文本 Message。
 - Request ID 是客户端生成的非零 `u64`。TypeScript SDK 使用 `bigint`，避免
   丢失完整整数范围。
 
 帧布局、保留路由流程、重试和兼容性规则见 [ELR2 协议](../concepts/protocol)。
+
+生成的 SDK 处理 ELR2 字节，但不实现 Socket、客户端预测、远端插值或引擎实体
+模型。这些接入边界见[实时游戏开发](./realtime-gameplay)。
 
 ## 验证生成代码
 

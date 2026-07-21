@@ -74,26 +74,17 @@ curl -H "Authorization: Bearer $APP_ADMIN_TOKEN" \
 
 ## 压力测试
 
-Workspace 包含 `elura-load` TCP 压测工具。它会创建签名测试 Ticket、认证每个
-连接、请求指定应用路由，并输出连接、认证、请求延迟、吞吐与错误计数。
+需要本地完整软件链路 p99 时，使用 `elura-testkit` 选择客户端 Transport，并经过
+真实 Gateway 认证、队列和 Gateway→World 连接池。不同 Transport 的样本应分别
+生成报告。`WorldHarness` 只用于确定性的 Handler 与多步骤业务单元测试；它有意
+不提供负载或百分位 API。
 
-```bash
-export ELURA_LOAD_TICKET_KEY='替换为与-gateway-相同的-32-字节密钥'
-cargo run -p elura-load -- \
-  --address 127.0.0.1:17000 \
-  --connections 1000 \
-  --requests 100 \
-  --route 120
-```
+部署后应用容量应由独立压测进程配合应用自有的压测平台和生产形态业务场景进行
+测量。不同 Transport 的报告不能合并计算百分位。
 
-运行 `cargo run -p elura-load -- --help` 查看 Payload、超时、爬升、Identity
-与 Ticket Claim 选项。Ticket Key、Issuer、Audience、Region 和 Realm 必须与
-目标 Gateway 一致。请使用独立的非生产环境；每个 Worker 都代表一名已认证用户，
-并会调用指定路由。
-
-需要可复现的分布式压测时，`tools/elura-perf/compose.yml` 会启动 HAProxy、两个
-Gateway、一个 World、Redis 和压测工具。由于所有连接都来自同一个容器，该环境
-有意关闭了共享的来源 IP 请求限制，不应把这项覆盖复制到常规部署配置。
+源码 Workspace 还包含 `elura-load` 与 `elura-perf`。二者均为 `publish = false`
+的框架维护者工具，仅用于 Elura 自身的性能回归，不是应用依赖或受支持的上层 API。
+详见[框架性能回归](../contributing#框架性能回归)。
 
 ## 事故排查
 

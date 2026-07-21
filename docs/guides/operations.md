@@ -82,30 +82,20 @@ during endpoint propagation.
 
 ## Load testing
 
-The workspace includes `elura-load`, a TCP load generator that creates signed
-test tickets, authenticates every connection, sends an application route, and
-reports connection, authentication, request latency, throughput, and error
-counts.
+Use `elura-testkit` for a local full software-stack p99 with a selected client
+transport, real Gateway authentication and queues, and the Gateway-to-World
+connection pool. Keep each transport's samples in a separate report. Use
+`WorldHarness` only for deterministic handler and multi-step business unit
+tests; it deliberately has no load or percentile API.
 
-```bash
-export ELURA_LOAD_TICKET_KEY='replace-with-the-same-32-byte-gateway-key'
-cargo run -p elura-load -- \
-  --address 127.0.0.1:17000 \
-  --connections 1000 \
-  --requests 100 \
-  --route 120
-```
+Measure deployed application capacity from a separate load process using the
+application's own load-testing platform and production-shaped business
+scenarios. Keep reports from different transports separate.
 
-Run `cargo run -p elura-load -- --help` for payload, timeout, ramp, identity,
-and ticket claim options. The ticket key, issuer, audience, region, and realm
-must match the target Gateway. Use a dedicated non-production environment;
-every worker represents an authenticated user and invokes the selected route.
-
-For repeatable distributed tests, `tools/elura-perf/compose.yml` starts HAProxy,
-two Gateways, one World, Redis, and the load generator. Its configuration
-deliberately disables the shared per-source-IP request limit because all load
-connections originate from one container. Do not copy that override into
-normal deployment settings.
+The source workspace also contains `elura-load` and `elura-perf`. They are
+`publish = false` framework-maintainer tools for Elura's own performance
+regression testing, not application dependencies or supported upper-layer APIs.
+See [Framework performance regression](../contributing#framework-performance-regression).
 
 ## Incident checks
 

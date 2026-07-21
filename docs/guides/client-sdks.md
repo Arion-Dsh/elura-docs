@@ -44,6 +44,10 @@ model structs for the application's selected JSON library. They also include
 `proto/session_control.proto` for applications that prefer generated protobuf
 types.
 
+The standard error model includes optional `retry_after_ms`. For a retryable
+`REALM_FULL`, return to the application login queue or wait at least that delay;
+do not spin on Gateway authentication.
+
 The SDKs intentionally do **not** open sockets or dispatch application routes.
 Your client still owns connection lifecycle, renewal scheduling, reconnect
 backoff, request correlation, and encoding for routes `100+`.
@@ -74,12 +78,21 @@ The ticket is a credential. Keep it out of logs and application telemetry.
 - Each WebSocket binary message contains exactly one ELR2 frame. Negotiate
   `elura.v2` as the WebSocket subprotocol. QUIC uses the same identifier as its
   ALPN value.
+- Each UDP or WebTransport Datagram contains exactly one complete ELR2 frame.
+  The client must provide sequence, redundancy, ACK, and recovery semantics for
+  best-effort gameplay messages.
+- A WebTransport reliable bidirectional stream follows the same byte-stream
+  framing rules as TCP and QUIC.
 - WebSocket text messages are not part of ELR2.
 - Request IDs are non-zero client-generated `u64` values. The TypeScript SDK
   represents them as `bigint` to preserve the full range.
 
 Read [ELR2 protocol](../concepts/protocol) for the frame layout, reserved route
 sequence, retry behavior, and compatibility rules.
+
+The generated SDKs handle ELR2 bytes but do not implement sockets, client
+prediction, remote interpolation, or an engine entity model. See
+[Realtime gameplay](./realtime-gameplay) for those integration boundaries.
 
 ## Verify generated code
 

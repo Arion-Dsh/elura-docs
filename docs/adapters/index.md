@@ -44,10 +44,10 @@ operations guidance can be maintained together. See
 
 ```toml
 # Contract modules and DNS discovery
-elura = { version = "0.2.2", features = ["adapters"] }
+elura = { version = "0.2.5", features = ["adapters"] }
 
 # Add only concrete infrastructure in use
-elura = { version = "0.2.2", features = ["redis", "sql", "kubernetes"] }
+elura = { version = "0.2.5", features = ["redis", "sql", "kubernetes"] }
 ```
 
 Concrete adapter types live under `elura::adapters` and intentionally stay out
@@ -73,15 +73,16 @@ let online = Arc::new(
     RedisOnlineDirectory::connect(redis_url, "game:online", Duration::from_secs(60)).await?,
 );
 
+let online_config = GatewayOnlineConfig::new(
+    "gateway-1",
+    Duration::from_secs(60),
+    Duration::from_secs(20),
+    DuplicateLoginMode::RejectNew,
+);
+
 let gateway = Gateway::new(gateway_config)
     .replay_store(replay)
-    .online_directory(
-        "gateway-1",
-        online,
-        Duration::from_secs(60),
-        Duration::from_secs(20),
-        DuplicateLoginMode::RejectNew,
-    );
+    .online_directory(online, online_config);
 ```
 
 This only assembles the capabilities. Add a client transport, World client or

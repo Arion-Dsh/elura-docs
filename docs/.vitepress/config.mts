@@ -4,18 +4,18 @@ const base = process.env.DOCS_BASE ?? '/'
 
 const enNav = [
   { text: 'Start', link: '/guide/quick-start' },
-  { text: 'Guides', link: '/guides/world-development' },
+  { text: 'Guides', link: '/guides/' },
+  { text: 'Concepts', link: '/concepts/' },
   { text: 'Adapters', link: '/adapters/' },
-  { text: 'Providers', link: '/providers/' },
-  { text: 'Reference', link: '/reference/crates-and-features' }
+  { text: 'Providers', link: '/providers/' }
 ]
 
 const zhNav = [
   { text: '开始', link: '/zh/guide/quick-start' },
-  { text: '指南', link: '/zh/guides/world-development' },
+  { text: '指南', link: '/zh/guides/' },
+  { text: '概念', link: '/zh/concepts/' },
   { text: 'Adapters', link: '/zh/adapters/' },
-  { text: 'Providers', link: '/zh/providers/' },
-  { text: '参考', link: '/zh/reference/crates-and-features' }
+  { text: 'Providers', link: '/zh/providers/' }
 ]
 
 const enStartSidebar = [
@@ -24,7 +24,8 @@ const enStartSidebar = [
     items: [
       { text: 'Overview', link: '/' },
       { text: 'Quick start', link: '/guide/quick-start' },
-      { text: 'Generated project', link: '/guide/generated-project' }
+      { text: 'Generated project', link: '/guide/generated-project' },
+      { text: 'CLI commands', link: '/guide/cli' }
     ]
   },
   {
@@ -69,11 +70,16 @@ const enGuidesSidebar = [
   {
     text: 'Build',
     items: [
+      { text: 'Overview', link: '/guides/' },
       { text: 'World modules and routes', link: '/guides/world-development' },
+      { text: 'Realtime gameplay', link: '/guides/realtime-gameplay' },
       { text: 'Client transports', link: '/guides/transports' },
       { text: 'Application HTTP', link: '/guides/application-http' },
       { text: 'Client SDKs', link: '/guides/client-sdks' },
-      { text: 'Configuration', link: '/guides/configuration' }
+      { text: 'Configuration', link: '/guides/configuration' },
+      { text: 'Environment variables', link: '/reference/environment' },
+      { text: 'Features and imports', link: '/reference/crates-and-features' },
+      { text: 'Rust API (docs.rs)', link: 'https://docs.rs/elura' }
     ]
   },
   {
@@ -81,7 +87,9 @@ const enGuidesSidebar = [
     items: [
       { text: 'Distributed infrastructure', link: '/guides/distributed' },
       { text: 'Deployment', link: '/guides/deployment' },
-      { text: 'Operations', link: '/guides/operations' }
+      { text: 'Operations', link: '/guides/operations' },
+      { text: 'Admin HTTP API', link: '/reference/admin-api' },
+      { text: 'Production checklist', link: '/reference/production-checklist' }
     ]
   }
 ]
@@ -89,21 +97,10 @@ const enGuidesSidebar = [
 const enConceptsSidebar = [{
   text: 'Concepts',
   items: [
+    { text: 'Overview', link: '/concepts/' },
     { text: 'Architecture', link: '/concepts/architecture' },
     { text: 'Sessions and routing', link: '/concepts/sessions-and-routing' },
     { text: 'ELR2 protocol', link: '/concepts/protocol' }
-  ]
-}]
-
-const enReferenceSidebar = [{
-  text: 'Reference',
-  items: [
-    { text: 'Features and imports', link: '/reference/crates-and-features' },
-    { text: 'Environment variables', link: '/reference/environment' },
-    { text: 'Admin HTTP API', link: '/reference/admin-api' },
-    { text: 'Production checklist', link: '/reference/production-checklist' },
-    { text: 'CLI commands', link: '/guide/cli' },
-    { text: 'Rust API (docs.rs)', link: 'https://docs.rs/elura' }
   ]
 }]
 
@@ -113,7 +110,8 @@ const zhStartSidebar = [
     items: [
       { text: '概览', link: '/zh/' },
       { text: '快速开始', link: '/zh/guide/quick-start' },
-      { text: '生成的项目', link: '/zh/guide/generated-project' }
+      { text: '生成的项目', link: '/zh/guide/generated-project' },
+      { text: 'CLI 命令', link: '/zh/guide/cli' }
     ]
   },
   {
@@ -158,11 +156,16 @@ const zhGuidesSidebar = [
   {
     text: '开发',
     items: [
+      { text: '概览', link: '/zh/guides/' },
       { text: 'World 模块与路由', link: '/zh/guides/world-development' },
+      { text: '实时游戏开发', link: '/zh/guides/realtime-gameplay' },
       { text: '客户端传输', link: '/zh/guides/transports' },
       { text: '应用 HTTP', link: '/zh/guides/application-http' },
       { text: '客户端 SDK', link: '/zh/guides/client-sdks' },
-      { text: '配置', link: '/zh/guides/configuration' }
+      { text: '配置', link: '/zh/guides/configuration' },
+      { text: '环境变量', link: '/zh/reference/environment' },
+      { text: '功能开关与导入', link: '/zh/reference/crates-and-features' },
+      { text: 'Rust API（docs.rs）', link: 'https://docs.rs/elura' }
     ]
   },
   {
@@ -170,7 +173,9 @@ const zhGuidesSidebar = [
     items: [
       { text: '分布式基础设施', link: '/zh/guides/distributed' },
       { text: '部署', link: '/zh/guides/deployment' },
-      { text: '运维', link: '/zh/guides/operations' }
+      { text: '运维', link: '/zh/guides/operations' },
+      { text: '管理 HTTP API', link: '/zh/reference/admin-api' },
+      { text: '生产检查清单', link: '/zh/reference/production-checklist' }
     ]
   }
 ]
@@ -178,21 +183,10 @@ const zhGuidesSidebar = [
 const zhConceptsSidebar = [{
   text: '概念',
   items: [
+    { text: '概览', link: '/zh/concepts/' },
     { text: '架构', link: '/zh/concepts/architecture' },
     { text: '会话与路由', link: '/zh/concepts/sessions-and-routing' },
     { text: 'ELR2 协议', link: '/zh/concepts/protocol' }
-  ]
-}]
-
-const zhReferenceSidebar = [{
-  text: '参考',
-  items: [
-    { text: '功能开关与导入', link: '/zh/reference/crates-and-features' },
-    { text: '环境变量', link: '/zh/reference/environment' },
-    { text: '管理 HTTP API', link: '/zh/reference/admin-api' },
-    { text: '生产检查清单', link: '/zh/reference/production-checklist' },
-    { text: 'CLI 命令', link: '/zh/guide/cli' },
-    { text: 'Rust API（docs.rs）', link: 'https://docs.rs/elura' }
   ]
 }]
 
@@ -201,8 +195,8 @@ const enSidebar = {
   '/adapters/': enAdaptersSidebar,
   '/guides/': enGuidesSidebar,
   '/concepts/': enConceptsSidebar,
-  '/reference/': enReferenceSidebar,
-  '/guide/cli': enReferenceSidebar,
+  '/reference/': enGuidesSidebar,
+  '/guide/cli': enStartSidebar,
   '/guide/': enStartSidebar,
   '/': enStartSidebar
 }
@@ -212,8 +206,8 @@ const zhSidebar = {
   '/zh/adapters/': zhAdaptersSidebar,
   '/zh/guides/': zhGuidesSidebar,
   '/zh/concepts/': zhConceptsSidebar,
-  '/zh/reference/': zhReferenceSidebar,
-  '/zh/guide/cli': zhReferenceSidebar,
+  '/zh/reference/': zhGuidesSidebar,
+  '/zh/guide/cli': zhStartSidebar,
   '/zh/guide/': zhStartSidebar,
   '/zh/': zhStartSidebar
 }

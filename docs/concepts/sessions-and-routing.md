@@ -51,13 +51,26 @@ and the decision to show login UI. Sequence numbers help the runtime reason
 about delivered traffic around a disconnect; retry timing, state reconciliation,
 and UI behavior remain client policy.
 
+## Login queue and capacity
+
+The upper application owns login queue ordering, priority, queue tokens,
+position and ETA, and client polling or notification. Queued clients should not
+hold anonymous Gateway connections; the login service issues a short-lived
+login ticket only after granting an authentication attempt.
+
+Gateway enforces the final per-Region/per-Realm authenticated-Session limit by
+atomically applying duplicate-login policy, checking capacity, and registering
+the lease through `OnlineDirectory::acquire`. A full Realm returns retryable
+`REALM_FULL` with `retry_after_ms` without consuming the login ticket. See the
+[online presence API](/adapters/online#login-queue-and-realm-capacity).
+
 ## Duplicate login
 
-The online directory associates a player key with a Gateway/session lease.
-Available policies include allowing a new session to replace an old lease or
-kicking the existing session. Distributed `kick_existing` requires both a
-shared `OnlineDirectory` and a `SessionControlTransport`; configuring only one
-is rejected.
+The online directory associates a player key with Gateway/session leases.
+`AllowMultiple` retains every Session, `RejectNew` rejects a new Session while
+one is active, and `KickExisting` admits the new Session and closes the old one.
+Distributed `KickExisting` requires both a shared `OnlineDirectory` and a
+`SessionControlTransport`; configuring only one is rejected.
 
 Use lease settings where:
 

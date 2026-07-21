@@ -39,10 +39,22 @@ Elura 将账户身份、实时传输会话和当前负责游戏工作的 World �
 Token、设备会话、Credential 重新验证以及是否显示登录 UI。Sequence 用于处理
 断线前后的消息交付；重试时机、状态对账和 UI 行为仍属于客户端策略。
 
+## 登录排队与容量
+
+上层应用负责登录队列顺序、优先级、排队 Token、位置与预计时间，以及客户端轮询
+或通知。排队中的客户端不应占用匿名 Gateway 连接；登录服务只有在允许发起认证后
+才签发短有效期登录票据。
+
+Gateway 通过 `OnlineDirectory::acquire` 原子执行重复登录策略、容量检查和 Lease
+注册，从而落实最终的 Region/Realm 已认证 Session 上限。Realm 已满时返回可重试
+的 `REALM_FULL` 和 `retry_after_ms`，且不消费登录票据。参见
+[在线状态 API](/zh/adapters/online#登录排队与-realm-容量)。
+
 ## 重复登录
 
-在线目录将玩家键关联到 Gateway/会话租约。策略可以允许新会话替换旧租约，或
-踢出已有会话。分布式 `kick_existing` 必须同时配置共享 `OnlineDirectory` 和
+在线目录将玩家键关联到 Gateway/Session Lease。`AllowMultiple` 保留全部 Session，
+`RejectNew` 在已有活跃 Session 时拒绝新 Session，`KickExisting` 则准入新 Session
+并关闭旧 Session。分布式 `KickExisting` 必须同时配置共享 `OnlineDirectory` 和
 `SessionControlTransport`；只配置其中一个会被拒绝。
 
 租约设置必须满足：

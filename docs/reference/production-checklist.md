@@ -41,6 +41,17 @@ and availability requirements.
 - [ ]  Termination grace periods exceed drain/shutdown timeouts.
 - [ ]  PodDisruptionBudgets match the actual replica count.
 
+## Realtime simulation
+
+- [ ]  Input target-Tick, redundancy, reorder, and replay windows are bounded and tested.
+- [ ]  Scene ownership prevents the same logical match from simulating on two Worlds.
+- [ ]  Fixed-step catch-up limits and overload behavior are explicit.
+- [ ]  AOI and replication streams are partitioned by observer and scene rather than globally.
+- [ ]  Prediction, interpolation, replication, and rewind capacities are sized from measured RTT and jitter.
+- [ ]  Prediction and lag-compensation snapshots contain only simulation or collision data.
+- [ ]  Weak-network tests cover loss, jitter, reordering, duplication, queue pressure, and constrained bandwidth.
+- [ ]  Historical hit validation cannot mutate live state before the result is accepted.
+
 ## Operations
 
 - [ ]  Health/readiness/version endpoints are monitored.

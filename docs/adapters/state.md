@@ -19,6 +19,24 @@ contract rather than treating “distributed state” as one database.
 The SQL adapter exposes `ensure_schema`; run migrations under controlled startup
 or deployment ownership rather than concurrently from every replica.
 
+### Usage example
+
+```rust
+use std::sync::Arc;
+
+use elura::adapters::account_version::RedisAccountVersionStore;
+use elura::prelude::*;
+
+let versions = Arc::new(
+    RedisAccountVersionStore::connect(redis_url, "game:account-version").await?,
+);
+let gateway = Gateway::new(gateway_config)
+    .account_version_store(versions, AccountVersionSettings::default());
+```
+
+Use `SqlAccountVersionStore::connect_postgres` or `connect_mysql` when account
+state already lives in SQL. Call `ensure_schema` once under migration ownership.
+
 ## Online directory
 
 `OnlineDirectory` manages Session leases, lookup, groups, and duplicate-login
@@ -33,6 +51,34 @@ too long. `KickExisting` also requires a compatible
 See the [online presence API](./online) for complete contracts, Gateway
 installation, online counts, lifecycle observers, and custom backend guidance.
 
+### Usage example
+
+```rust
+use std::{sync::Arc, time::Duration};
+
+use elura::adapters::online::RedisOnlineDirectory;
+use elura::prelude::*;
+
+let directory = Arc::new(RedisOnlineDirectory::connect(
+    redis_url,
+    "game:online",
+    Duration::from_secs(60),
+).await?);
+
+let online_config = GatewayOnlineConfig::new(
+    "gateway-1",
+    Duration::from_secs(60),
+    Duration::from_secs(20),
+    DuplicateLoginMode::AllowMultiple,
+);
+
+let gateway = Gateway::new(gateway_config)
+    .online_directory(directory, online_config);
+```
+
+See [Online presence](./online) for Session lookup, totals, groups, lifecycle
+observers, and `KickExisting` configuration.
+
 ## OTP storage
 
 `OtpStore` atomically creates challenges and verifies/consumes attempts.
@@ -41,6 +87,32 @@ replicas issue or verify the same challenge namespace.
 
 Storage protects atomicity and cooldown. API-level IP, recipient, and global
 rate limits remain an application responsibility. See the [OTP provider](/providers/otp).
+
+### Usage example
+
+```rust
+use std::time::Duration;
+
+use elura::adapters::otp::RedisOtpStore;
+use elura::core::otp::{OtpCreateResult, OtpRecord, OtpStore};
+
+let store = RedisOtpStore::connect(redis_url, "game:otp").await?;
+let result = store
+    .create(
+        OtpRecord {
+            subject_key: "email:user@example.com".into(),
+            purpose: "login".into(),
+            code_digest: digest.to_vec(),
+        },
+        Duration::from_secs(300),
+        Duration::from_secs(60),
+    )
+    .await?;
+assert!(matches!(result, OtpCreateResult::Stored | OtpCreateResult::Cooldown));
+```
+
+Store a cryptographic digest, never the plaintext OTP. Pass the same store to
+the application Provider that issues and verifies challenges.
 
 ## Ticket replay
 
@@ -51,25 +123,20 @@ hits one process. `RedisReplayStore` shares replay state across Gateway replicas
 Do not horizontally scale ticket verification with independent memory stores;
 the same ticket can otherwise be accepted by multiple replicas.
 
-## Example: construct shared stores
+### Usage example
 
 ```rust
-use std::time::Duration;
+use std::sync::Arc;
 
-use elura::adapters::account_version::SqlAccountVersionStore;
-use elura::adapters::online::RedisOnlineDirectory;
 use elura::adapters::replay::RedisReplayStore;
+use elura::prelude::*;
 
-let replay = RedisReplayStore::connect(redis_url, "game:ticket-replay").await?;
-let online = RedisOnlineDirectory::connect(
-    redis_url,
-    "game:online",
-    Duration::from_secs(60),
-).await?;
-
-let account_versions = SqlAccountVersionStore::connect_postgres(postgres_url).await?;
-account_versions.ensure_schema().await?;
+let replay = Arc::new(
+    RedisReplayStore::connect(redis_url, "game:ticket-replay").await?,
+);
+let gateway = Gateway::new(gateway_config).replay_store(replay);
 ```
 
-Constructing stores does not activate them. Inject `replay` and `online` into a
-Gateway; inject `account_versions` where the account-version policy is applied.
+For a single Gateway process, `MemoryReplayStore` is the zero-dependency
+alternative. Switch to Redis before multiple Gateways can accept the same
+ticket namespace.

@@ -28,6 +28,11 @@ features:
     details: 保持应用边界不变，按需加入 Redis、SQL、DNS、Kubernetes、指标、保护和水平路由。
     link: /zh/guides/deployment
     linkText: 面向生产设计
+  - icon: "04"
+    title: 权威实时游戏
+    details: 组合固定 Tick、房间、AOI、状态同步、预测、插值、延迟补偿和可复现弱网测试。
+    link: /zh/guides/realtime-gameplay
+    linkText: 构建实时系统
 ---
 
 ## 从生成一个应用开始
@@ -67,7 +72,8 @@ elura init all --dir .
 | 不使用 CLI 拆分 Gateway 与 World | [手动拆分搭建](/zh/guide/manual-setup) |
 | 组装共享状态与动态发现 | [手动分布式搭建](/zh/guide/manual-distributed) |
 | 添加第一个游戏命令 | [World 模块与路由](/zh/guides/world-development) |
-| 添加 TCP、WebSocket、QUIC 或自定义客户端端点 | [客户端传输](/zh/guides/transports) |
+| 构建实时房间、AOI、预测或实体状态同步 | [实时游戏开发](/zh/guides/realtime-gameplay) |
+| 添加 TCP、UDP、WebSocket、WebTransport、QUIC 或自定义客户端端点 | [客户端传输](/zh/guides/transports) |
 | 添加 Axum HTTP API 或回调端点 | [应用 HTTP 服务](/zh/guides/application-http) |
 | 连接 C++、C# 或 TypeScript 客户端 | [客户端协议 SDK](/zh/guides/client-sdks) |
 | 看懂生成的文件 | [生成的项目](/zh/guide/generated-project) |

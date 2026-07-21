@@ -1,13 +1,13 @@
 # Client transports
 
 Client transports are Gateway endpoints that carry ELR2 game sessions. TCP,
-WebSocket, QUIC, and custom transports all enter the same Session engine; they
-are separate from [application HTTP](./application-http) and the private admin
-server.
+UDP, WebSocket, WebTransport, QUIC, and custom transports all enter the same
+Session engine; they are separate from
+[application HTTP](./application-http) and the private admin server.
 
 Do not mount an ELR2 WebSocket endpoint with `Gateway::http`. The built-in
 WebSocket endpoint is a `GatewayTransport` and shares authentication, limits,
-routing, Push, and graceful shutdown with TCP and QUIC.
+routing, Push, and graceful shutdown with every other built-in transport.
 
 ## Install transports
 
@@ -47,6 +47,8 @@ shared.
 | ELR2/TCP | `TcpTransport::new(TcpConfig)?` | `127.0.0.1:17000` | Keepalive, TLS, pending handshakes, Proxy Protocol |
 | ELR2/WebSocket | `WebSocketConfig` | `127.0.0.1:17002` | Path, subprotocol, origins, TLS, trusted proxies |
 | ELR2/QUIC | `QuicConfig` | `127.0.0.1:17003` | Certificate, key, ALPN, idle/handshake timeouts |
+| ELR2/UDP | `UdpConfig` | `127.0.0.1:17004` | Datagram bytes, peer Sessions, per-peer queue |
+| ELR2/WebTransport | `WebTransportConfig` | `127.0.0.1:17005` | HTTP/3 identity, path, origins, reliable/datagram mode |
 
 ### TCP
 
@@ -97,6 +99,39 @@ or deserialize the optional top-level `quic` object used by the generated
 project. Its default ALPN is `elura.v2`, and one ELR2 Session uses the first
 client-initiated bidirectional stream.
 
+### UDP
+
+Every UDP datagram must contain exactly one complete ELR2 frame. A source
+address identifies one best-effort Gateway Session until authentication,
+heartbeat, idle timeout, or Session closure removes it. The default maximum
+datagram size is 1200 bytes to avoid IP fragmentation on common paths.
+
+UDP does not add delivery, ordering, congestion control, or connection
+migration. Use input sequence numbers, redundancy, ACKs, and bounded reorder
+windows from `elura-netcode` for gameplay traffic that can tolerate best-effort
+delivery. Use a reliable transport for messages whose protocol does not define
+recovery.
+
+Malformed and oversized datagrams are discarded before a Session is created.
+`max_sessions` and `per_session_queue` bound source-address state and buffered
+work.
+
+### WebTransport
+
+WebTransport runs over HTTP/3 and always requires a TLS certificate and key.
+Construct `WebTransportConfig::from_pem_files`, configure the CONNECT path and
+origin policy, then select one channel:
+
+- `WebTransportMode::ReliableStream` accepts one client-initiated
+  bidirectional stream carrying the ELR2 byte stream;
+- `WebTransportMode::Datagram` requires each WebTransport Datagram to contain
+  one complete ELR2 frame and preserves message boundaries.
+
+The default path is `/elura/game`. When `allowed_origins` is empty, a browser
+Origin must match the request authority. Non-browser clients that omit Origin
+require the explicit `allow_missing_origin` setting. Handshake, stream-open,
+idle, pending-handshake, datagram-size, and queue limits are all bounded.
+
 ## Custom transports
 
 A custom endpoint implements both `GatewayTransport` and
@@ -119,8 +154,12 @@ Rustdoc for the required associated listener and I/O bounds.
 
 - At least one transport is required.
 - Transport, application HTTP, and admin listeners must use non-conflicting
-  addresses. `0.0.0.0:17000` conflicts with every listener on port `17000`.
+  addresses within the same socket namespace. `0.0.0.0:17000` conflicts with
+  every other TCP listener on port `17000`.
 - Invalid transport settings and listener conflicts are returned by `build()`
   or `run()`; fluent registration does not panic.
-- TCP, WebSocket, and QUIC own their client-facing TLS settings independently.
+- Endpoints conflict only within the same operating-system socket namespace;
+  a TCP and UDP listener may use the same numeric port.
+- TCP, WebSocket, QUIC, and WebTransport own their client-facing TLS settings
+  independently.
 - All registered transports stop and drain with the Gateway lifecycle.

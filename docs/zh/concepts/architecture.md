@@ -6,7 +6,7 @@ World 负责业务处理器和游戏状态。
 ```text
                  公网                          私有网络
 
- 客户端 ── ELR2/TCP、WebSocket 或 QUIC ──> Gateway ── ELR2/TCP ──> World
+ 客户端 ── TCP / UDP / WebSocket / WebTransport / QUIC ──> Gateway ── ELR2/TCP ──> World
                                       │   │                     │
                                       │   ├── 服务发现          ├── 处理器
                                       │   ├── 会话状态          ├── 中间件
@@ -21,7 +21,7 @@ World 负责业务处理器和游戏状态。
 
 Gateway 是信任和连接边界，负责：
 
-- 接受 TCP、WebSocket、QUIC 或应用自定义客户端传输；
+- 接受 TCP、UDP、WebSocket、WebTransport、QUIC 或应用自定义客户端传输；
 - 强制执行连接数、载荷、队列、超时和限流规则；
 - 验证认证票据与重连票据；
 - 为已认证会话签发并轮换重连票据；
@@ -53,6 +53,33 @@ World 是私有业务执行边界，负责：
 
 生成的拆分应用使用内部 Bearer Token。生产网络还应结合网络策略，并按威胁模型
 启用 TLS 或 mTLS。
+
+## 实时游戏层
+
+多个玩家共同修改一个比赛、房间或地图分片时，World 可以托管可选的
+`SceneRuntime`。每个 Scene 有一个有界邮箱：命令、生命周期 Hook 和 Tick 在 Scene
+内部串行执行，不同 Scene 可以并行。Scene 放置、分布式所有权、持久化、恢复和游戏
+规则仍由应用决定。
+
+下面的游戏原语不依赖 World，也可以运行在独立 Executor、测试或客户端 Rust 代码中：
+
+| 原语 | 职责 |
+| --- | --- |
+| `Room` | 成员、准备状态、房主继任和生命周期状态 |
+| `FixedStepClock` | 有界确定性模拟时序 |
+| `AoiGrid` | 二维可见性查询和进入/离开差集 |
+| Netcode | Tick 估算、输入冗余、ACK/乱序、预测、插值和预测实体匹配 |
+| Replication | 按观察者维护 Spawn、Despawn、增量、Keyframe、Prediction Key、乱序和 ACK 状态 |
+| `LagCompensationHistory` | 有界只读历史快照和经过验证的倒带查询 |
+| `SimulatedLink` | 确定性延迟、抖动、丢包、重复、乱序、带宽和队列压力 |
+
+权威动作游戏通常按目标 Tick 暂存已接受输入，由固定模拟 Step 消费，然后更新 AOI、
+记录精简碰撞快照，并为每个观察者生成独立状态同步流。客户端预测本地实体、根据权威
+状态回滚纠正，并插值远端实体。
+
+Elura 负责有界协议与时序机制；应用负责移动、物理、技能、AI、实体 Schema、
+序列化、具体插值、碰撞查询、命中与伤害规则，以及客户端表现。完整组合方式见
+[实时游戏开发](/zh/guides/realtime-gameplay)。
 
 ## 运行时层与应用层
 

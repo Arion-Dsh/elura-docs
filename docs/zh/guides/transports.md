@@ -1,11 +1,11 @@
 # 客户端传输
 
-客户端传输是 Gateway 承载 ELR2 游戏会话的网络端点。TCP、WebSocket、QUIC 与
-自定义传输最终进入同一套 Session 引擎；它们不同于[应用 HTTP](./application-http)
-和私有管理服务。
+客户端传输是 Gateway 承载 ELR2 游戏会话的网络端点。TCP、UDP、WebSocket、
+WebTransport、QUIC 与自定义传输最终进入同一套 Session 引擎；它们不同于
+[应用 HTTP](./application-http)和私有管理服务。
 
 不要用 `Gateway::http` 挂载 ELR2 WebSocket。内置 WebSocket 端点是
-`GatewayTransport`，与 TCP、QUIC 共享认证、限制、路由、Push 和优雅停机。
+`GatewayTransport`，与其他所有内置传输共享认证、限制、路由、Push 和优雅停机。
 
 ## 安装传输
 
@@ -44,6 +44,8 @@ gateway
 | ELR2/TCP | `TcpTransport::new(TcpConfig)?` | `127.0.0.1:17000` | Keepalive、TLS、待处理握手、Proxy Protocol |
 | ELR2/WebSocket | `WebSocketConfig` | `127.0.0.1:17002` | Path、子协议、Origin、TLS、可信代理 |
 | ELR2/QUIC | `QuicConfig` | `127.0.0.1:17003` | 证书、私钥、ALPN、空闲/握手超时 |
+| ELR2/UDP | `UdpConfig` | `127.0.0.1:17004` | Datagram 大小、Peer Session、每 Peer 队列 |
+| ELR2/WebTransport | `WebTransportConfig` | `127.0.0.1:17005` | HTTP/3 身份、Path、Origin、可靠/Datagram 模式 |
 
 ### TCP
 
@@ -88,6 +90,35 @@ QUIC 始终使用 TLS 1.3。可通过证书和私钥路径构造 `QuicConfig`，
 生成项目使用的可选顶层 `quic` 对象。默认 ALPN 是 `elura.v2`，一个 ELR2
 Session 使用客户端发起的第一条双向 Stream。
 
+### UDP
+
+每个 UDP Datagram 必须恰好包含一帧完整 ELR2。源地址标识一条 Best-effort
+Gateway Session，直到认证、心跳、空闲超时或 Session 关闭将其移除。默认最大
+Datagram 为 1200 字节，以避免常见路径上的 IP 分片。
+
+UDP 不提供可靠投递、顺序、拥塞控制或连接迁移。对于允许 Best-effort 投递的游戏
+流量，使用 `elura-netcode` 的输入序列、冗余、ACK 和有界乱序窗口。未定义恢复协议
+的消息应使用可靠传输。
+
+格式错误和超大 Datagram 会在创建 Session 前被丢弃。`max_sessions` 和
+`per_session_queue` 分别限制源地址状态和缓存工作量。
+
+### WebTransport
+
+WebTransport 运行在 HTTP/3 上，必须配置 TLS 证书和私钥。通过
+`WebTransportConfig::from_pem_files` 构造配置，设置 CONNECT Path 和 Origin
+策略，再选择一种通道：
+
+- `WebTransportMode::ReliableStream` 接受一条客户端发起的双向 Stream，
+  其中承载 ELR2 字节流；
+- `WebTransportMode::Datagram` 要求每个 WebTransport Datagram 包含一帧完整
+  ELR2，并保留消息边界。
+
+默认 Path 是 `/elura/game`。`allowed_origins` 为空时，浏览器 Origin 必须匹配
+请求 Authority；省略 Origin 的非浏览器客户端必须显式启用
+`allow_missing_origin`。握手、Stream 打开、空闲、待处理握手、Datagram 大小和
+队列都有明确上限。
+
 ## 自定义传输
 
 自定义端点需要同时实现 `GatewayTransport` 与 `GatewayTransportListener`。
@@ -108,8 +139,11 @@ Rustdoc。
 ## 监听规则
 
 - 至少安装一个传输。
-- 客户端传输、应用 HTTP 与管理 HTTP 必须使用互不冲突的监听地址。
-  `0.0.0.0:17000` 会与所有使用 `17000` 端口的监听冲突。
+- 客户端传输、应用 HTTP 与管理 HTTP 在相同 Socket Namespace 内必须使用互不
+  冲突的监听地址。`0.0.0.0:17000` 会与所有使用 `17000` 端口的 TCP Listener
+  冲突。
 - 无效传输设置与监听冲突由 `build()` 或 `run()` 返回；Fluent 注册不会 Panic。
-- TCP、WebSocket 与 QUIC 分别拥有自己的客户端 TLS 设置。
+- 只有占用相同操作系统 Socket Namespace 的端点才冲突；TCP 与 UDP 可以使用相同
+  数字端口。
+- TCP、WebSocket、QUIC 与 WebTransport 分别拥有自己的客户端 TLS 设置。
 - 所有已注册传输都随 Gateway 生命周期停止并排空。

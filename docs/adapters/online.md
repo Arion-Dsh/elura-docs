@@ -14,7 +14,7 @@ The API is split by responsibility:
 
 | Contract | Responsibility |
 | --- | --- |
-| `OnlineDirectory` | Register, renew, remove, locate, and group live Session leases |
+| `OnlineDirectory` | Atomically admit, renew, remove, locate, and group live Session leases |
 | `OnlineStatsReader` | Read per-region/per-realm Session and distinct-user totals |
 | `OnlineBackend` | Convenience combination of both contracts |
 | `SessionObserver` | Receive process-local Session lifecycle transitions |
@@ -49,6 +49,10 @@ pub struct OnlineStats {
 `session_count` counts authenticated Sessions. `user_count` deduplicates those
 Sessions by `user_id`. One player connected from two devices therefore counts
 as two Sessions and one user.
+
+`OnlineAdmissionPolicy` combines duplicate-login behavior with the optional
+hard Session limit for the Session's Region and Realm. `OnlineAdmission`
+returns `Accepted`, `Duplicate`, or `RealmFull` from the same atomic operation.
 
 ## Built-in backends
 
@@ -85,16 +89,18 @@ boundaries.
 Gateway accepts the lifecycle contract:
 
 ```rust
+let online_config = GatewayOnlineConfig::new(
+    "gateway-shanghai-1",
+    Duration::from_secs(45),
+    Duration::from_secs(15),
+    DuplicateLoginMode::AllowMultiple,
+)
+.with_realm_capacity(86, 1, 10_000);
+
 let gateway = Gateway::new(config)
     .replay_store(replay)
     .world_client(world)
-    .online_directory(
-        "gateway-shanghai-1",
-        directory.clone(),
-        Duration::from_secs(45),
-        Duration::from_secs(15),
-        DuplicateLoginMode::AllowMultiple,
-    );
+    .online_directory(directory.clone(), online_config);
 ```
 
 Lease timing must satisfy:
@@ -103,13 +109,14 @@ Lease timing must satisfy:
 0 < renew_interval < lease_ttl
 ```
 
-After authentication Gateway registers the lease and renews it periodically.
-When the connection ends, Gateway unregisters it and releases any single-login
-claim. If a Gateway disappears without cleanup, the adapter must stop returning
-the lease after its TTL.
+During authentication Gateway atomically applies duplicate-login and realm
+capacity policy and registers an accepted lease. It renews the lease
+periodically and unregisters it when the connection ends. If a Gateway
+disappears without cleanup, the adapter must stop returning the lease after its
+TTL.
 
-Applications normally call query methods. Gateway owns `register`, `renew`,
-`unregister`, `claim_single`, and `release_single`.
+Applications normally call query methods. Gateway owns `acquire`, `renew`, and
+`unregister`.
 
 ## Query Sessions and totals
 
@@ -146,6 +153,22 @@ Gateway supports:
 Distributed `KickExisting` requires both a shared `OnlineDirectory` and a
 `SessionControlTransport`. The online directory locates the Session; session
 control tells the owning Gateway to close it.
+
+## Login queue and realm capacity
+
+The upper application owns queue ordering, priority, queue tokens, position and
+ETA reporting, and polling or notification. A queued client should not hold an
+anonymous Gateway connection open; obtain a short-lived login ticket only when
+the queue grants an authentication attempt.
+
+Gateway provides the final hard limit through `GatewayOnlineConfig` and atomic
+`OnlineDirectory::acquire`. Online statistics are useful for display and queue
+planning, but must not be used as a check-then-register admission decision.
+
+When the selected Realm is full, authentication returns the retryable
+`REALM_FULL` error with `retry_after_ms`. The login ticket is not consumed, so
+the client may retry it after the application queue or the indicated delay
+allows another attempt.
 
 ## Session lifecycle notifications
 
@@ -215,8 +238,8 @@ struct PostgresOnlineDirectory {
 
 #[async_trait]
 impl OnlineDirectory for PostgresOnlineDirectory {
-    // Implement atomic lease lifecycle, expiry filtering, grouping,
-    // and single-login fencing.
+    // Implement atomic duplicate-login and capacity admission, lease
+    // lifecycle, expiry filtering, and grouping.
 }
 
 #[async_trait]
@@ -236,7 +259,7 @@ implements `OnlineBackend`.
 
 ## Responsibility boundary
 
-Elura owns transport liveness, Session identity, leases, duplicate-login
-coordination, and provider-neutral queries. The application owns durable
-`online` projections, last-seen timestamps, friend notifications, privacy
-rules, bot filtering, and reconciliation jobs.
+Elura owns transport liveness, Session identity, leases, atomic duplicate-login
+and hard-capacity admission, and provider-neutral queries. The application owns
+login queue policy, durable `online` projections, last-seen timestamps, friend
+notifications, privacy rules, bot filtering, and reconciliation jobs.

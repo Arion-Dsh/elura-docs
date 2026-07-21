@@ -131,21 +131,32 @@ Keep middleware responsibilities narrow. A common order is:
 Return retryable failures only when repeating the same request is safe. Reuse
 the request ID so idempotency protection can recognize the retry.
 
-## Testing
+## Business testing
 
 Build the fluent World and use the harness returned by `WorldServer::harness()`
-for handler-level tests without opening sockets:
+for handler-level and multi-step business tests without opening sockets:
 
 ```rust
+use elura::world::testing::test_identity;
+
 let harness = World::new(WorldConfig::default())
     .route(GetPlayerProfile, get_player_profile)
     .build()?
     .harness();
+
+let client = harness.client(test_identity(42))?;
+let response = client
+    .call(GetPlayerProfile, GetPlayerProfileRequest {})
+    .await?;
+assert_eq!(response.user_id, 42);
 ```
 
-Its concrete type is `elura::world::testing::WorldHarness`. The typed
-`call(route, identity, request)` helper encodes the request and decodes the
-response. Cover:
+`WorldHarness` is exported from `elura::world::testing`. `WorldTestClient`
+keeps one identity and session across calls, automatically assigns request IDs,
+and encodes and decodes typed route messages. This makes a sequence such as
+login, list inventory, equip item, and read the updated player state a normal
+Rust test. Use `call_in_session` when the test must supply a session ID and
+`command_raw` only for protocol and malformed-payload cases. Cover:
 
 - valid and invalid protobuf payloads;
 - identity/realm authorization;
@@ -153,6 +164,54 @@ response. Cover:
 - timeout and retryable error behavior;
 - transaction rollback;
 - expected push messages.
+
+### Transport-selectable full-stack tests
+
+Add `elura-testkit` as a development dependency when p99 must include the
+client transport, ticket authentication, Gateway queues, the Gateway-to-World
+connection pool, and World execution:
+
+```toml
+[dev-dependencies]
+elura-testkit = "0.2.5"
+```
+
+```rust
+use elura_testkit::{
+    FullStackBuilder, FullStackLoadConfig, WebSocketTestTransport,
+    test_identity,
+};
+
+let harness = FullStackBuilder::loopback()?
+    .route(GetPlayerProfile, get_player_profile)
+    .start(WebSocketTestTransport::loopback()?)
+    .await?;
+
+let report = harness
+    .load_scenario(
+        FullStackLoadConfig::new(32, 1_000),
+        |worker| test_identity(worker as i64 + 1),
+        |client, _, _| async move {
+            client.call(GetPlayerProfile, GetPlayerProfileRequest {}).await?;
+            Ok(())
+        },
+    )
+    .await?;
+
+println!("transport={} p99={:?}", report.transport, report.operation_latency.p99);
+harness.shutdown().await?;
+```
+
+Built-in TCP and WebSocket connectors use the same business client. The
+`TestTransport` and `TestConnection` traits allow QUIC, WebTransport, UDP, and
+application-specific transports to supply matching Gateway and client sides.
+Never combine samples from different transports into one percentile. Local
+loopback results are full software-stack baselines; production network p99
+still requires a separate load process against the deployed environment.
+
+`WorldHarness` intentionally exposes no load or percentile API. It bypasses
+Gateway and transport processing, so its timings are useful for unit-test
+diagnostics but are not a valid full-stack p99.
 
 Run the workspace verification before publishing application changes:
 

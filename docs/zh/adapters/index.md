@@ -42,10 +42,10 @@ Redis、SQL 与 Kubernetes 都是实现，不是框架必需组件。Gateway 到
 
 ```toml
 # 契约模块与 DNS Discovery
-elura = { version = "0.2.2", features = ["adapters"] }
+elura = { version = "0.2.5", features = ["adapters"] }
 
 # 只添加实际使用的基础设施
-elura = { version = "0.2.2", features = ["redis", "sql", "kubernetes"] }
+elura = { version = "0.2.5", features = ["redis", "sql", "kubernetes"] }
 ```
 
 具体类型位于 `elura::adapters`，并且不会进入 Prelude，这让 Redis、SQL 或
@@ -69,15 +69,16 @@ let online = Arc::new(
     RedisOnlineDirectory::connect(redis_url, "game:online", Duration::from_secs(60)).await?,
 );
 
+let online_config = GatewayOnlineConfig::new(
+    "gateway-1",
+    Duration::from_secs(60),
+    Duration::from_secs(20),
+    DuplicateLoginMode::RejectNew,
+);
+
 let gateway = Gateway::new(gateway_config)
     .replay_store(replay)
-    .online_directory(
-        "gateway-1",
-        online,
-        Duration::from_secs(60),
-        Duration::from_secs(20),
-        DuplicateLoginMode::RejectNew,
-    );
+    .online_directory(online, online_config);
 ```
 
 这段代码只组装能力。还需要按搭建指南添加客户端 Transport、World Client 或

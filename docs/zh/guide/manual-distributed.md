@@ -28,7 +28,7 @@ Gateways <──> 可替换基础设施 <──> Worlds
 Client，因此本示例无需在应用中直接依赖 `redis`：
 
 ```toml [Cargo.toml]
-elura = { version = "0.2.2", features = ["redis"] }
+elura = { version = "0.2.5", features = ["redis"] }
 ```
 
 ## 2. 注册每个 World
@@ -181,17 +181,17 @@ async fn main() -> elura::Result<()> {
         app.distributed.session_control,
     ).await?);
     let tcp = TcpTransport::new(app.tcp)?;
+    let online_config = GatewayOnlineConfig::new(
+        gateway_id.clone(),
+        app.distributed.lease_ttl,
+        app.distributed.renew_interval,
+        DuplicateLoginMode::KickExisting,
+    );
 
     Gateway::new(app.runtime)
         .transport(tcp)
         .replay_store(replay)
-        .online_directory(
-            &gateway_id,
-            online.clone(),
-            app.distributed.lease_ttl,
-            app.distributed.renew_interval,
-            DuplicateLoginMode::KickExisting,
-        )
+        .online_directory(online.clone(), online_config)
         .push_transport(push)
         .session_control_transport(session_control)
         .readiness_probe("redis-online", online)

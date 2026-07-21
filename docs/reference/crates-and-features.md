@@ -12,12 +12,20 @@ The workspace is split into focused crates. Most applications depend on the
 | `elura-runtime` | Lifecycle, security, administration, and observability | Usually through `elura` |
 | `elura-gateway` | Client connection and session runtime | Usually through `elura` |
 | `elura-world` | Command and player-state runtime | Usually through `elura` |
+| `elura-room` | Application-owned room roster and lifecycle | Usually through `elura` |
+| `elura-aoi` | Sparse-grid two-dimensional visibility indexing | Usually through `elura` |
+| `elura-simulation` | Deterministic fixed-step timing | Usually through `elura` |
+| `elura-netcode` | Tick sync, input redundancy, prediction, and interpolation | Usually through `elura` |
+| `elura-replication` | Per-observer entity lifecycle and state replication | Usually through `elura` |
+| `elura-lag-compensation` | Bounded authoritative history and rewind queries | Usually through `elura` |
+| `elura-net-sim` | Deterministic adverse-network simulation | Development and tests |
 | `elura-monolith` | Single-process Gateway and World composition | Usually through `elura` |
+| `elura-testkit` | Transport-selectable full-stack business and load tests | Development dependency |
 | `elura-adapters` | Redis, SQL, DNS, Kubernetes, outbox adapters | Usually through `elura` |
 | `elura-providers` | Identity, OTP, SMS, payment providers | Usually through `elura` |
 | `elura-cli` | Project scaffolding binary | Install as a tool |
-| `elura-load` | Connection/request load generator | Development only |
-| `elura-perf` | Reproducible performance scenarios | Workspace/internal |
+| `elura-load` | Transport-selectable framework regression load generator | Framework maintainers only; `publish = false` |
+| `elura-perf` | Reproducible multi-Gateway regression environment | Framework maintainers only; `publish = false` |
 
 ## Facade features
 
@@ -31,6 +39,13 @@ The `elura` crate enables `gateway` and `world` by default. Both include
 | `gateway` | `runtime`, `elura-gateway` |
 | `world` | `runtime`, `elura-world` |
 | `monolith` | `gateway`, `world`, `elura-monolith` |
+| `room` | `elura-room` |
+| `aoi` | `elura-aoi` |
+| `simulation` | `elura-simulation` |
+| `netcode` | `elura-netcode` |
+| `replication` | `elura-replication`; it uses `elura-netcode` internally |
+| `lag-compensation` | `elura-lag-compensation` |
+| `net-sim` | `elura-net-sim` |
 | `adapters` | `runtime`, base `elura-adapters` |
 | `redis` | `adapters`, `gateway`, `world`, Redis adapter implementations |
 | `sql` | `adapters`, SQL adapter implementations |
@@ -46,7 +61,7 @@ The `elura` crate enables `gateway` and `world` by default. Both include
 | `payment-quicksdk` | QuickSDK payment |
 | `payment-wechat-mini` | WeChat Mini Program payment |
 | `payment-wechat-pay` | WeChat Pay |
-| `full` | All adapters and providers above |
+| `full` | All optional gameplay primitives, adapters, and providers above |
 
 ## Facade imports
 
@@ -76,8 +91,10 @@ site:
 ```rust
 use elura::world::{World, WorldModule, WorldModuleRegistry};
 use elura::world::middleware::LoggingMiddleware;
-use elura::world::testing::WorldHarness;
+use elura::world::testing::{test_identity, WorldHarness, WorldTestClient};
+use elura_testkit::{FullStackBuilder, FullStackLoadConfig};
 use elura::gateway::GatewayInfrastructure;
+use elura::{aoi, lag_compensation, netcode, replication, room, simulation};
 ```
 
 Concrete infrastructure and provider implementations are never added to the
@@ -100,17 +117,23 @@ from the prelude when their feature is enabled.
 
 ```toml
 # Gateway + World runtime only (default)
-elura = "0.2.2"
+elura = "0.2.5"
 
 # DNS discovery types live in the adapter crate without a concrete optional
 # backend, so the generated split project starts with this feature.
-elura = { version = "0.2.2", features = ["adapters"] }
+elura = { version = "0.2.5", features = ["adapters"] }
 
 # Redis-backed distributed application
-elura = { version = "0.2.2", features = ["redis"] }
+elura = { version = "0.2.5", features = ["redis"] }
 
 # Kubernetes discovery and SQL account versions
-elura = { version = "0.2.2", features = ["kubernetes", "sql"] }
+elura = { version = "0.2.5", features = ["kubernetes", "sql"] }
+
+# Authoritative realtime gameplay primitives
+elura = { version = "0.2.5", features = [
+  "room", "aoi", "simulation", "netcode", "replication",
+  "lag-compensation",
+] }
 ```
 
 The CLI writes its exact Elura release into generated manifests. Keep the CLI
@@ -127,3 +150,10 @@ operational guidance:
 - `https://docs.rs/elura-runtime`
 - `https://docs.rs/elura-adapters`
 - `https://docs.rs/elura-providers`
+- `https://docs.rs/elura-room`
+- `https://docs.rs/elura-aoi`
+- `https://docs.rs/elura-simulation`
+- `https://docs.rs/elura-netcode`
+- `https://docs.rs/elura-replication`
+- `https://docs.rs/elura-lag-compensation`
+- `https://docs.rs/elura-net-sim`

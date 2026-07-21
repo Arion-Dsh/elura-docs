@@ -14,37 +14,7 @@ outline: [2, 3]
 
 它适合稳定服务名与 Kubernetes Headless Service，但除了地址外没有实例元数据。
 
-## Redis 注册与发现
-
-`RedisWorldRegistrar` 发布带过期时间的 `WorldRegistration` Lease，
-`RedisWorldDiscovery` 扫描并监听相同 Prefix。启用 `redis`，并确保注册与发现配置
-使用相同 `key_prefix`。
-
-TTL 至少应为续租周期的两倍。每个 World 需要唯一 ID，并广播所有 Gateway 都可
-访问的地址。相关类型在支持时提供 Standalone 与 Cluster 构造函数。
-
-## Kubernetes Endpoints
-
-`EndpointDiscovery` 执行一次 EndpointSlice 解析；`EndpointWatcher` 持续监听并
-更新 Route；`KubernetesWorldDiscovery` 将 Watcher 包装为更高层 Gateway 集成。
-启用 `kubernetes`，只授予目标 Namespace 和必要资源的 read/watch 权限。
-
-需要 API 驱动快速收敛或 Endpoint 元数据时选择它；仅靠 Service DNS 足够时优先
-使用 DNS。
-
-## 选型
-
-| 环境 | 通常从这里开始 |
-| --- | --- |
-| 单进程或固定地址 | 应用静态配置 |
-| VM/裸机且已有服务 DNS | DNS |
-| VM/裸机且需要逐 World Lease | Redis 注册/发现 |
-| Kubernetes 简单服务路由 | DNS/Headless Service |
-| Kubernetes 需要 EndpointSlice 更新 | Kubernetes Watcher |
-
-也可以为 Consul、etcd 或平台控制面实现 `WorldDiscovery` 与 `WorldRegistrar`。
-
-## 示例：DNS Discovery
+### 使用示例
 
 ```rust
 use std::sync::Arc;
@@ -60,3 +30,87 @@ let gateway = Gateway::new(gateway_config).world_discovery(discovery);
 
 迁移到 Redis 或 Kubernetes 时只替换 `discovery`，ELR2 Routing 与游戏 Handler
 不需要变化。
+
+## Redis 注册与发现
+
+`RedisWorldRegistrar` 发布带过期时间的 `WorldRegistration` Lease，
+`RedisWorldDiscovery` 扫描并监听相同 Prefix。启用 `redis`，并确保注册与发现配置
+使用相同 `key_prefix`。
+
+TTL 至少应为续租周期的两倍。每个 World 需要唯一 ID，并广播所有 Gateway 都可
+访问的地址。相关类型在支持时提供 Standalone 与 Cluster 构造函数。
+
+### 使用示例
+
+World 与 Gateway 必须使用同一 Prefix。World 发布 Lease，Gateway 持续监听
+最新 Target Set。
+
+```rust
+use std::sync::Arc;
+
+use elura::adapters::discovery::{
+    RedisWorldDiscovery, RedisWorldDiscoveryConfig,
+    RedisWorldRegistrar, RedisWorldRegistrationConfig,
+};
+use elura::prelude::*;
+
+let registration = RedisWorldRegistrationConfig::new(
+    "game:worlds",
+    "world-1.internal:18000",
+    1,
+    1,
+);
+let registrar = Arc::new(
+    RedisWorldRegistrar::connect(redis_url, "world-1", registration).await?,
+);
+let world = World::new(world_config).registrar(registrar);
+
+let discovery = Arc::new(
+    RedisWorldDiscovery::connect(
+        redis_url,
+        RedisWorldDiscoveryConfig::new("game:worlds"),
+    )
+    .await?,
+);
+let gateway = Gateway::new(gateway_config).world_discovery(discovery);
+```
+
+`World::run` 会监督注册续租与清理；`Gateway::run` 会监督发现刷新与订阅恢复。
+
+## Kubernetes Endpoints
+
+`EndpointDiscovery` 执行一次 EndpointSlice 解析；`EndpointWatcher` 持续监听并
+更新 Route；`KubernetesWorldDiscovery` 将 Watcher 包装为更高层 Gateway 集成。
+启用 `kubernetes`，只授予目标 Namespace 和必要资源的 read/watch 权限。
+
+需要 API 驱动快速收敛或 Endpoint 元数据时选择它；仅靠 Service DNS 足够时优先
+使用 DNS。
+
+### 使用示例
+
+```rust
+use std::sync::Arc;
+
+use elura::adapters::discovery::KubernetesWorldDiscovery;
+use elura::adapters::kubernetes::EndpointWatcherConfig;
+use elura::prelude::*;
+
+let watcher = EndpointWatcherConfig::new("game", "world", "elr2", 1, 1);
+let discovery = Arc::new(KubernetesWorldDiscovery::new(watcher)?);
+let gateway = Gateway::new(gateway_config).world_discovery(discovery);
+```
+
+`world` Service 必须暴露名为 `elr2` 的 Port。Gateway ServiceAccount 需要 `game`
+Namespace 中 EndpointSlice 的 `get`、`list` 与 `watch` 权限。
+
+## 选型
+
+| 环境 | 通常从这里开始 |
+| --- | --- |
+| 单进程或固定地址 | 应用静态配置 |
+| VM/裸机且已有服务 DNS | DNS |
+| VM/裸机且需要逐 World Lease | Redis 注册/发现 |
+| Kubernetes 简单服务路由 | DNS/Headless Service |
+| Kubernetes 需要 EndpointSlice 更新 | Kubernetes Watcher |
+
+也可以为 Consul、etcd 或平台控制面实现 `WorldDiscovery` 与 `WorldRegistrar`。

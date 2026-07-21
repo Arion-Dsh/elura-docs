@@ -63,7 +63,7 @@ JSON 文件只包含安全的非密钥开发默认值。运行时配置使用严
 - `APP_INTERNAL_TOKEN` 用于认证 Gateway 到 World 的命令。
 - `APP_ADMIN_TOKEN` 保护指标、调试和管理操作端点。
 
-[环境变量参考](/zh/reference/environment)列出了模板使用的全部变量。
+[环境变量](/zh/reference/environment)页列出了模板使用的全部变量。
 
 Gateway 票据配置使用 `login_ttl` 与 `reconnect_ttl`。上层登录服务调用
 `issue_login`；Gateway 认证成功响应和路由 `3` 响应提供持续轮换的重连票据。
@@ -77,7 +77,7 @@ Gateway 票据配置使用 `login_ttl` 与 `reconnect_ttl`。上层登录服务�
 ```toml
 [dependencies]
 prost = "0.14"
-elura = { version = "0.2.2", features = ["adapters", "monolith"] }
+elura = { version = "0.2.5", features = ["adapters", "monolith"] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 tokio = { version = "1", features = ["macros", "rt-multi-thread", "signal"] }
@@ -87,7 +87,7 @@ tokio = { version = "1", features = ["macros", "rt-multi-thread", "signal"] }
 只有同时构建单进程入口时才需要保留 `monolith`：
 
 ```toml
-elura = { version = "0.2.2", features = ["redis"] }
+elura = { version = "0.2.5", features = ["redis"] }
 ```
 
 完整矩阵见 [Crate 与功能开关](/zh/reference/crates-and-features)。
