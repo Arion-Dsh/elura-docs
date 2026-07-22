@@ -85,7 +85,10 @@ when you want the full picture.
 | Add login, OTP, SMS, or payments | [Providers](/providers/) |
 | Prepare a production release | [Production checklist](/reference/production-checklist) |
 
-::: warning Project status
-Elura is under active `0.x` development. Pin exact versions in production and
-review compatibility before upgrading.
+::: info Project status
+The current release is **v0.2.5**. Elura now includes typed World business
+APIs, standalone and distributed Gateway/World runtimes, authoritative realtime
+gameplay primitives, production adapters and providers, and transport-aware
+full-stack testing. The project remains pre-1.0: pin exact versions in
+production and review release notes and compatibility before upgrading.
 :::

@@ -81,7 +81,9 @@ elura init all --dir .
 | 接入登录、OTP、短信或支付 | [Providers](/zh/providers/) |
 | 准备生产发布 | [生产检查清单](/zh/reference/production-checklist) |
 
-::: warning 项目状态
-Elura 目前处于活跃的 `0.x` 开发阶段。生产环境应锁定精确版本，并在升级前检查
-兼容性。
+::: info 项目状态
+当前版本为 **v0.2.5**。Elura 现已提供类型化 World 业务 API、单体与分布式
+Gateway/World Runtime、权威实时游戏组件、生产级 Adapter 与 Provider，以及可选择
+Transport 的全链路测试能力。项目尚未进入 1.0：生产环境应锁定精确版本，并在升级前
+检查 Release Notes 与兼容性。
 :::
