@@ -86,11 +86,10 @@ when you want the full picture.
 | Prepare a production release | [Production checklist](/reference/production-checklist) |
 
 ::: info Project status
-The current release is **v0.2.8**. It adds one-login HTTP access/refresh
-authentication with one-time Gateway ticket exchange, a built-in
-`IdentityService` bridge, and standalone Rust client SDK generation alongside
-C++, C#, and TypeScript. Public framework routes consistently use
-`/elura/...`; Kubernetes-compatible liveness and readiness probes remain at
-`/healthz` and `/readyz`. The project remains pre-1.0: pin exact versions in
-production and review release notes and compatibility before upgrading.
+The current release is **v0.2.10**. Generated Rust client SDKs keep their
+transport-neutral protocol core dependency-light and expose Tokio stream
+framing through the optional `tokio-codec` feature. Rust SDK templates are
+included in the published `elura-cli` crate. C++, C#, and TypeScript SDK
+generation remains available. The project remains pre-1.0: pin exact versions
+in production and review release notes and compatibility before upgrading.
 :::

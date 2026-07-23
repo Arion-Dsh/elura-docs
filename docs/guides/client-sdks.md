@@ -33,7 +33,7 @@ scaffolds. Existing customized files are preserved by default.
 
 | Output | Runtime | Included checks |
 | --- | --- | --- |
-| `sdk/rust/` | Standalone Rust 2024 crate with Tokio codec integration | Cargo golden-vector tests |
+| `sdk/rust/` | Standalone Rust 2024 crate; transport-neutral core with optional Tokio codec integration | Cargo golden-vector tests |
 | `sdk/cpp/` | Dependency-free C++20 | CMake/CTest golden vectors |
 | `sdk/csharp/` | C# 9 / .NET Standard 2.1; Unity 6.3 LTS compatible | Golden-vector executable on .NET 9 |
 | `sdk/typescript/` | Dependency-free strict ES module for browsers and Node.js | Node test runner and type check |
@@ -60,10 +60,21 @@ The generated APIs keep framing separate from the transport selected by the
 application. The transport only sends encoded bytes and passes received bytes
 back to the SDK.
 
+The Rust SDK has no async-runtime dependency by default. Enable its optional
+Tokio stream adapter, and add the stream utilities used by the application:
+
+```toml
+[dependencies]
+elura-protocol = { version = "0.2.10", features = ["tokio-codec"] }
+futures-util = { version = "0.3", features = ["sink"] }
+tokio-util = { version = "0.7", features = ["codec"] }
+```
+
 ::: code-group
 
 ```rust [Rust]
 use elura_protocol::{Elr2Codec, EluraProtocol};
+use futures_util::SinkExt;
 use tokio_util::codec::Framed;
 
 let mut connection = Framed::new(stream, Elr2Codec::default());
@@ -108,11 +119,13 @@ socket.onmessage = ({ data }) => handle(Elr2.decode(data as ArrayBuffer));
 
 :::
 
-Rust's `Elr2Codec` integrates directly with `tokio_util::codec::Framed`. C++
-accepts `std::vector`, `std::array`, and `std::span` byte ranges directly. C#
-supplies built-in authentication/reconnect JSON codecs without depending on
-`System.Text.Json`. TypeScript accepts string payloads as UTF-8 and accepts
-both `ArrayBuffer` and `Uint8Array` inputs.
+With `tokio-codec` enabled, Rust's `Elr2Codec` integrates directly with
+`tokio_util::codec::Framed`. Without that feature, use its transport-neutral
+`encode` and `decode` APIs. C++ accepts `std::vector`, `std::array`, and
+`std::span` byte ranges directly. C# supplies built-in
+authentication/reconnect JSON codecs without depending on `System.Text.Json`.
+TypeScript accepts string payloads as UTF-8 and accepts both `ArrayBuffer` and
+`Uint8Array` inputs.
 
 ## Silent reconnect flow
 
@@ -174,6 +187,7 @@ code:
 
 ```bash [Rust]
 cargo test --manifest-path sdk/rust/Cargo.toml
+cargo test --manifest-path sdk/rust/Cargo.toml --features tokio-codec
 ```
 
 ```bash [C++]

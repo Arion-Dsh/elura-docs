@@ -82,10 +82,9 @@ elura init all --dir .
 | 准备生产发布 | [生产检查清单](/zh/reference/production-checklist) |
 
 ::: info 项目状态
-当前版本为 **v0.2.8**。本版本新增一次登录同时签发 HTTP Access/Refresh Token
-并交换一次性 Gateway Ticket 的流程，提供内置 `IdentityService` 桥接，并在
-C++、C# 与 TypeScript 之外加入独立 Rust 客户端 SDK 生成。公开框架路由统一使用
-`/elura/...`，Kubernetes 兼容的存活与就绪探针保留为 `/healthz` 和 `/readyz`。
-项目尚未进入 1.0：生产环境应锁定精确版本，并在升级前检查 Release Notes 与
-兼容性。
+当前版本为 **v0.2.10**。生成的 Rust 客户端 SDK 保持轻量、与传输无关的协议
+核心，并通过可选 `tokio-codec` feature 提供 Tokio 字节流 Framing；发布到
+crates.io 的 `elura-cli` 已包含完整 Rust SDK 模板。C++、C# 与 TypeScript SDK
+仍可正常生成。项目尚未进入 1.0：生产环境应锁定精确版本，并在升级前检查
+Release Notes 与兼容性。
 :::

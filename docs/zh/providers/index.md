@@ -39,7 +39,7 @@ HTTP/API 层 -> Provider 契约 -> 外部平台
 因此调用处能够明确看到外部依赖。
 
 ```toml
-elura = { version = "0.2.8", features = ["identity", "otp", "notification-alisms"] }
+elura = { version = "0.2.10", features = ["identity", "otp", "notification-alisms"] }
 ```
 
 `full` 适合文档或大范围开发构建，不应作为生产默认配置。

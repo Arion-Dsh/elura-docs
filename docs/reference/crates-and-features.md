@@ -122,20 +122,20 @@ from the prelude when their feature is enabled.
 
 ```toml
 # Gateway + World runtime only (default)
-elura = "0.2.8"
+elura = "0.2.10"
 
 # DNS discovery types live in the adapter crate without a concrete optional
 # backend, so the generated split project starts with this feature.
-elura = { version = "0.2.8", features = ["adapters"] }
+elura = { version = "0.2.10", features = ["adapters"] }
 
 # Redis-backed distributed application
-elura = { version = "0.2.8", features = ["redis"] }
+elura = { version = "0.2.10", features = ["redis"] }
 
 # Kubernetes discovery and SQL account versions
-elura = { version = "0.2.8", features = ["kubernetes", "sql"] }
+elura = { version = "0.2.10", features = ["kubernetes", "sql"] }
 
 # Authoritative realtime gameplay primitives
-elura = { version = "0.2.8", features = [
+elura = { version = "0.2.10", features = [
   "room", "aoi", "simulation", "netcode", "replication",
   "lag-compensation",
 ] }

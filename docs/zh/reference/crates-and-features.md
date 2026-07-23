@@ -119,19 +119,19 @@ use elura::providers::payment::WechatPayPayment; // `payment-wechat-pay`
 
 ```toml
 # Gateway + World runtime only (default)
-elura = "0.2.8"
+elura = "0.2.10"
 
 # Generated split project with DNS discovery types
-elura = { version = "0.2.8", features = ["adapters"] }
+elura = { version = "0.2.10", features = ["adapters"] }
 
 # Redis-backed distributed application
-elura = { version = "0.2.8", features = ["redis"] }
+elura = { version = "0.2.10", features = ["redis"] }
 
 # Kubernetes discovery and SQL account versions
-elura = { version = "0.2.8", features = ["kubernetes", "sql"] }
+elura = { version = "0.2.10", features = ["kubernetes", "sql"] }
 
 # 权威实时游戏原语
-elura = { version = "0.2.8", features = [
+elura = { version = "0.2.10", features = [
   "room", "aoi", "simulation", "netcode", "replication",
   "lag-compensation",
 ] }

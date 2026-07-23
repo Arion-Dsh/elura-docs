@@ -42,7 +42,7 @@ publish = false
 
 [dependencies]
 prost = "0.14"
-elura = { version = "0.2.8", features = ["adapters"] }
+elura = { version = "0.2.10", features = ["adapters"] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 tokio = { version = "1", features = ["macros", "rt-multi-thread", "signal"] }

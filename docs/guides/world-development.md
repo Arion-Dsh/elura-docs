@@ -173,7 +173,7 @@ connection pool, and World execution:
 
 ```toml
 [dev-dependencies]
-elura-testkit = "0.2.8"
+elura-testkit = "0.2.10"
 ```
 
 ```rust

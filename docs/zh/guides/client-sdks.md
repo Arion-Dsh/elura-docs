@@ -31,7 +31,7 @@ elura init sdk --language typescript --dir .
 
 | 输出目录 | 运行环境 | 自带检查 |
 | --- | --- | --- |
-| `sdk/rust/` | 独立 Rust 2024 crate，集成 Tokio codec | Cargo 黄金向量测试 |
+| `sdk/rust/` | 独立 Rust 2024 crate；核心与传输无关，可选集成 Tokio codec | Cargo 黄金向量测试 |
 | `sdk/cpp/` | 无第三方依赖的 C++20 | CMake/CTest 黄金向量 |
 | `sdk/csharp/` | C# 9 / .NET Standard 2.1，兼容 Unity 6.3 LTS | 在 .NET 9 上运行黄金向量 |
 | `sdk/typescript/` | 浏览器与 Node.js 可用、无运行时依赖的严格 ES Module | Node 测试与类型检查 |
@@ -53,10 +53,21 @@ SDK 有意**不负责**打开 Socket 或分发应用路由。连接生命周期�
 生成的 API 将协议帧与上层选择的传输分开。传输只需发送编码后的字节，并把收到
 的字节交回 SDK。
 
+Rust SDK 默认不依赖异步运行时。使用 Tokio 字节流时，启用可选适配器，并添加
+应用所需的流工具：
+
+```toml
+[dependencies]
+elura-protocol = { version = "0.2.10", features = ["tokio-codec"] }
+futures-util = { version = "0.3", features = ["sink"] }
+tokio-util = { version = "0.7", features = ["codec"] }
+```
+
 ::: code-group
 
 ```rust [Rust]
 use elura_protocol::{Elr2Codec, EluraProtocol};
+use futures_util::SinkExt;
 use tokio_util::codec::Framed;
 
 let mut connection = Framed::new(stream, Elr2Codec::default());
@@ -101,10 +112,12 @@ socket.onmessage = ({ data }) => handle(Elr2.decode(data as ArrayBuffer));
 
 :::
 
-Rust 的 `Elr2Codec` 可直接与 `tokio_util::codec::Framed` 集成。C++ 可直接接收
-`std::vector`、`std::array` 和 `std::span` 字节区间。C# 内置认证与重连 JSON
-编解码，并且不依赖 `System.Text.Json`。TypeScript 会自动把字符串 Payload
-编码为 UTF-8，并直接接收 `ArrayBuffer` 或 `Uint8Array`。
+启用 `tokio-codec` 后，Rust 的 `Elr2Codec` 可直接与
+`tokio_util::codec::Framed` 集成；未启用时使用与传输无关的 `encode` 和
+`decode` API。C++ 可直接接收 `std::vector`、`std::array` 和 `std::span`
+字节区间。C# 内置认证与重连 JSON 编解码，并且不依赖 `System.Text.Json`。
+TypeScript 会自动把字符串 Payload 编码为 UTF-8，并直接接收 `ArrayBuffer`
+或 `Uint8Array`。
 
 ## 静默重连流程
 
@@ -153,6 +166,7 @@ Rust 的 `Elr2Codec` 可直接与 `tokio_util::codec::Framed` 集成。C++ 可�
 
 ```bash [Rust]
 cargo test --manifest-path sdk/rust/Cargo.toml
+cargo test --manifest-path sdk/rust/Cargo.toml --features tokio-codec
 ```
 
 ```bash [C++]

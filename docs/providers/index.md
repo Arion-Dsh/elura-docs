@@ -44,7 +44,7 @@ features, and concrete implementations stay out of the prelude so external
 dependencies remain visible at call sites.
 
 ```toml
-elura = { version = "0.2.8", features = ["identity", "otp", "notification-alisms"] }
+elura = { version = "0.2.10", features = ["identity", "otp", "notification-alisms"] }
 ```
 
 Use `full` for documentation or broad development builds, not as the default

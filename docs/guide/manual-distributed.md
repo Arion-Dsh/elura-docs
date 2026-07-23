@@ -32,7 +32,7 @@ The facade enables the Redis client used internally by the adapters, so the
 application does not need a direct `redis` dependency for this example:
 
 ```toml [Cargo.toml]
-elura = { version = "0.2.8", features = ["redis"] }
+elura = { version = "0.2.10", features = ["redis"] }
 ```
 
 ## 2. Register each World

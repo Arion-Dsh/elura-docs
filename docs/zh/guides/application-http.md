@@ -19,7 +19,7 @@
 ```toml
 [dependencies]
 axum = "0.8"
-elura = "0.2.8"
+elura = "0.2.10"
 ```
 
 创建普通 Axum `Router`，再通过 `.http(...)` 为它分配独立监听地址：
@@ -143,7 +143,7 @@ World::new(world_config)
 启用 `monolith` Feature：
 
 ```toml
-elura = { version = "0.2.8", features = ["monolith"] }
+elura = { version = "0.2.10", features = ["monolith"] }
 ```
 
 组合进程需要由 Gateway 或 World 持有的 HTTP 时，使用 `Monolith::gateway` 与
