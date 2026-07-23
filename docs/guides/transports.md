@@ -46,7 +46,7 @@ shared.
 | --- | --- | --- | --- |
 | ELR2/TCP | `TcpTransport::new(TcpConfig)?` | `127.0.0.1:17000` | Keepalive, TLS, pending handshakes, Proxy Protocol |
 | ELR2/WebSocket | `WebSocketConfig` | `127.0.0.1:17002` | Path, subprotocol, origins, TLS, trusted proxies |
-| ELR2/QUIC | `QuicConfig` | `127.0.0.1:17003` | Certificate, key, ALPN, idle/handshake timeouts |
+| ELR2/QUIC | `QuicConfig` | `127.0.0.1:17003` | Certificate, key, reliable/hybrid mode, Datagram routes and limits |
 | ELR2/UDP | `UdpConfig` | `127.0.0.1:17004` | Datagram bytes, peer Sessions, per-peer queue |
 | ELR2/WebTransport | `WebTransportConfig` | `127.0.0.1:17005` | HTTP/3 identity, path, origins, reliable/datagram mode |
 
@@ -96,8 +96,35 @@ application-owned deserializable settings type and map its validated values to
 
 QUIC always uses TLS 1.3. Construct `QuicConfig` with certificate and key paths,
 or deserialize the optional top-level `quic` object used by the generated
-project. Its default ALPN is `elura.v2`, and one ELR2 Session uses the first
-client-initiated bidirectional stream.
+project. Its default ALPN is `elura.v2`, and one ELR2 Session always opens the
+first client-initiated bidirectional stream.
+
+`QuicMode::ReliableStream`, the default, carries every ELR2 frame on that
+stream. `QuicMode::Hybrid` keeps framework and durable application routes on
+the stream while selected realtime application routes use QUIC Datagrams:
+
+```rust
+use elura::transport::{QuicConfig, QuicMode};
+
+let mut quic = QuicConfig::from_pem_files(
+    "0.0.0.0:17003".parse()?,
+    "certs/quic-cert.pem",
+    "certs/quic-key.pem",
+);
+quic.mode = QuicMode::Hybrid;
+quic.datagram_routes = vec![120, 121]; // input and replication packets
+quic.max_datagram_bytes = 1100;
+quic.datagram_queue = 64;
+
+gateway = gateway.transport(quic);
+```
+
+Hybrid mode requires at least one unique route ID at or above `100`, and the
+peer must support QUIC Datagrams. Authentication and all other framework
+routes remain reliable. The client must use the same route policy in both
+directions. Each Datagram contains exactly one complete ELR2 frame; malformed,
+oversized, and excess best-effort traffic may be discarded. Keep inventory,
+rewards, match lifecycle, and other durable commands off `datagram_routes`.
 
 ### UDP
 

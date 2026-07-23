@@ -30,16 +30,18 @@ ELR2 是 Elura 用于客户端流量和内部命令流量的二进制帧协议�
 - **Error** 与请求关联，携带序列化错误信封。
 
 WebSocket 传输中，每个二进制 WebSocket Message 必须恰好包含一个 ELR2 帧，
-客户端必须协商 `elura.v2` 子协议。QUIC 同样使用 `elura.v2` 作为 ALPN。协议
-不支持 WebSocket 文本 Message。
+客户端必须协商 `elura.v2` 子协议。QUIC 同样使用 `elura.v2` 作为 ALPN。可靠
+QUIC 流量使用客户端发起的第一条双向 Stream；Hybrid 模式下，指定的应用路由让
+每个 QUIC Datagram 承载一帧完整 ELR2，框架路由和未指定路由仍使用 Stream。
+协议不支持 WebSocket 文本 Message。
 
-Elura 可以生成对应的 C++17、C# 与 TypeScript 编解码器。接入边界和不同传输
+Elura 可以生成对应的 C++20、C# 与 TypeScript 编解码器。接入边界和不同传输
 方式的检查见[客户端协议 SDK](../guides/client-sdks)。
 
 ## 所有语言使用同一套协议
 
 Rust 的 `Frame` 与 `FrameCodec` 是 ELR2 的参考实现，而不是 Rust 专用传输协议。
-生成的 C++17、C# 和 TypeScript SDK 会编码完全相同的 28 字节帧头、整数字节序、
+生成的 C++20、C# 和 TypeScript SDK 会编码完全相同的 28 字节帧头、整数字节序、
 帧类型、校验规则和 Payload 字节。跨语言黄金向量会验证逐字节兼容性。
 
 存在非 Rust 客户端时，不要把 ELR2 换成原生 Struct 布局、`bincode` 等 Rust
@@ -147,10 +149,13 @@ Route、Request ID 和 Sequence。Error 是请求结果，因此 Request ID 不�
 
 ## Request ID 与重试
 
-Request ID 由客户端生成，用于关联请求，且必须非零。Gateway 为近期完成的请求
-保留有界响应缓存。重试应在配置的 TTL 内复用相同的 Request ID 和路由。不要把
-该内存缓存当作持久化的 Exactly-once 交付保证；需要幂等保证的业务操作应使用
-应用自有的持久键与事务约束。
+Request ID 由客户端生成，用于关联请求，且必须非零。它标识一次传输尝试：响应或
+错误会回显 Request ID，因此客户端使用新 ID 重试后可以拒绝迟到的旧结果。
+Gateway 不缓存或重放应用响应；每个通过校验的重试都会进入 World。
+
+需要幂等保证的业务操作必须在 protobuf Payload 中携带稳定的应用 Operation ID。
+同一操作的所有尝试保持该 ID 不变，并通过共享持久化存储和事务唯一约束执行防重。
+不要用连接范围内的 Request ID 或 Sequence 代替业务幂等键。
 
 ## 兼容性
 

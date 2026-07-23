@@ -1,11 +1,11 @@
 # 客户端协议 SDK
 
-Elura 可以生成 C++17、.NET 8/C# 和 TypeScript 本地协议库。它们实现公开的
-Gateway-to-client ELR2 v2 契约，客户端不需要重复手写二进制帧、保留路由和
-内置 Payload。
+Elura 可以生成 C++20、C# 9 / .NET Standard 2.1（兼容 Unity 6.3 LTS）和严格
+TypeScript 本地协议库。它们实现公开的 Gateway-to-client ELR2 v2 契约，客户端
+不需要重复手写二进制帧、保留路由和内置 Payload。
 
 这些 SDK 是 Rust `elura_core::protocol::FrameCodec` 所用 Wire Contract 的其他
-语言实现，并不是不同协议。同一个帧由 Rust、C++17、C# 或 TypeScript 编码时，
+语言实现，并不是不同协议。同一个帧由 Rust、C++20、C# 或 TypeScript 编码时，
 会产生完全相同的字节。
 
 ## 生成协议库
@@ -31,9 +31,9 @@ elura init sdk --language typescript --dir .
 
 | 输出目录 | 运行环境 | 自带检查 |
 | --- | --- | --- |
-| `sdk/cpp/` | 无第三方依赖的 C++17 | CMake/CTest 黄金向量 |
-| `sdk/csharp/` | 无第三方依赖的 .NET 8 类库 | 黄金向量可执行程序 |
-| `sdk/typescript/` | TypeScript ES Module | Node 测试与类型检查 |
+| `sdk/cpp/` | 无第三方依赖的 C++20 | CMake/CTest 黄金向量 |
+| `sdk/csharp/` | C# 9 / .NET Standard 2.1，兼容 Unity 6.3 LTS | 在 .NET 8 上运行黄金向量 |
+| `sdk/typescript/` | 浏览器与 Node.js 可用、无运行时依赖的严格 ES Module | Node 测试与类型检查 |
 
 三套实现都包含帧编码、完整消息解码、TCP 流重组、保留路由、标准错误、认证与
 重连 Payload 以及 Session Control protobuf 编码。TypeScript 与 C# 为这些内置
@@ -46,6 +46,54 @@ JSON 库完成序列化。项目中还会包含
 
 SDK 有意**不负责**打开 Socket 或分发应用路由。连接生命周期、续票调度、重连
 退避、请求关联以及 `100+` 路由的消息编码仍由客户端负责。
+
+## 上层最简用法
+
+生成的 API 将协议帧与上层选择的传输分开。传输只需发送编码后的字节，并把收到
+的字节交回 SDK。
+
+::: code-group
+
+```cpp [C++20]
+#include <elura/elr2.hpp>
+
+auto request = elura::Frame::request(
+    100, next_request_id++, elura::to_bytes(R"({"x":10,"y":20})"));
+send_bytes(elura::encode_frame(request));
+
+elura::StreamDecoder decoder;
+decoder.append(received_chunk);
+while (auto frame = decoder.next()) {
+  handle(*frame);
+}
+```
+
+```csharp [Unity / C# 9]
+var request = GatewayFrames.Authenticate(nextRequestId++, loginTicket);
+transport.Send(Elr2Codec.Encode(request));
+
+decoder.Append(receivedChunk);
+while (decoder.TryRead(out var frame))
+{
+    Handle(frame!);
+}
+```
+
+```ts [TypeScript]
+import { Elr2, Gateway } from "@elura/protocol";
+
+const request = Gateway.authenticate(nextRequestId++, loginTicket);
+socket.send(Elr2.encode(request));
+
+socket.binaryType = "arraybuffer";
+socket.onmessage = ({ data }) => handle(Elr2.decode(data as ArrayBuffer));
+```
+
+:::
+
+C++ 可直接接收 `std::vector`、`std::array` 和 `std::span` 字节区间。C# 内置认证
+与重连 JSON 编解码，并且不依赖 `System.Text.Json`。TypeScript 会自动把字符串
+Payload 编码为 UTF-8，并直接接收 `ArrayBuffer` 或 `Uint8Array`。
 
 ## 静默重连流程
 
@@ -63,16 +111,20 @@ SDK 有意**不负责**打开 Socket 或分发应用路由。连接生命周期�
 
 ## 传输契约
 
-- TCP 与 QUIC Stream 连续承载编码后的 ELR2 帧。读取结果可能是半个帧或多个
-  帧，必须交给 SDK 提供的流式 Decoder。
+- TCP 与可靠 QUIC Stream 连续承载编码后的 ELR2 帧。读取结果可能是半个帧或
+  多个帧，必须交给 SDK 提供的流式 Decoder。
 - 每个 WebSocket 二进制 Message 恰好包含一个 ELR2 帧，并协商
   `elura.v2` WebSocket 子协议。QUIC 使用相同字符串作为 ALPN。
-- 每个 UDP 或 WebTransport Datagram 恰好包含一帧完整 ELR2。对于 Best-effort
-  游戏消息，客户端需要实现序列、冗余、ACK 和恢复语义。
+- 每个 UDP、WebTransport Datagram 或 QUIC Hybrid Datagram 恰好包含一帧完整
+  ELR2。QUIC Hybrid 客户端必须使用与服务端相同的路由集合；框架路由和未指定
+  路由仍使用可靠 Stream。对于 Best-effort 游戏消息，客户端需要实现序列、冗余、
+  ACK 和恢复语义。
 - WebTransport 可靠双向 Stream 使用与 TCP、QUIC 相同的字节流 Framing 规则。
 - ELR2 不使用 WebSocket 文本 Message。
-- Request ID 是客户端生成的非零 `u64`。TypeScript SDK 使用 `bigint`，避免
-  丢失完整整数范围。
+- Request ID 是客户端生成的非零 `u64`。TypeScript 可直接使用安全整数范围内的
+  普通 `number` 作为计数器；需要完整无符号 64 位范围时也可传入 `bigint`。解码
+  后的 Request ID 表示为 `bigint`。每次重试尝试都应分配新的 Request ID，以便
+  区分迟到响应；业务 Operation ID 应放在应用 Payload 中并保持不变。
 
 帧布局、保留路由流程、重试和兼容性规则见 [ELR2 协议](../concepts/protocol)。
 

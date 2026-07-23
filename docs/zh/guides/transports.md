@@ -43,7 +43,7 @@ gateway
 | --- | --- | --- | --- |
 | ELR2/TCP | `TcpTransport::new(TcpConfig)?` | `127.0.0.1:17000` | Keepalive、TLS、待处理握手、Proxy Protocol |
 | ELR2/WebSocket | `WebSocketConfig` | `127.0.0.1:17002` | Path、子协议、Origin、TLS、可信代理 |
-| ELR2/QUIC | `QuicConfig` | `127.0.0.1:17003` | 证书、私钥、ALPN、空闲/握手超时 |
+| ELR2/QUIC | `QuicConfig` | `127.0.0.1:17003` | 证书、私钥、可靠/混合模式、Datagram 路由与限制 |
 | ELR2/UDP | `UdpConfig` | `127.0.0.1:17004` | Datagram 大小、Peer Session、每 Peer 队列 |
 | ELR2/WebTransport | `WebTransportConfig` | `127.0.0.1:17005` | HTTP/3 身份、Path、Origin、可靠/Datagram 模式 |
 
@@ -88,7 +88,33 @@ let gateway = Gateway::new(app.runtime).transport(tcp);
 
 QUIC 始终使用 TLS 1.3。可通过证书和私钥路径构造 `QuicConfig`，也可以反序列化
 生成项目使用的可选顶层 `quic` 对象。默认 ALPN 是 `elura.v2`，一个 ELR2
-Session 使用客户端发起的第一条双向 Stream。
+Session 始终打开客户端发起的第一条双向 Stream。
+
+默认的 `QuicMode::ReliableStream` 让所有 ELR2 帧使用该 Stream。
+`QuicMode::Hybrid` 则保留框架路由和持久化应用路由的可靠传输，仅让指定的实时
+应用路由使用 QUIC Datagram：
+
+```rust
+use elura::transport::{QuicConfig, QuicMode};
+
+let mut quic = QuicConfig::from_pem_files(
+    "0.0.0.0:17003".parse()?,
+    "certs/quic-cert.pem",
+    "certs/quic-key.pem",
+);
+quic.mode = QuicMode::Hybrid;
+quic.datagram_routes = vec![120, 121]; // 输入与复制数据包
+quic.max_datagram_bytes = 1100;
+quic.datagram_queue = 64;
+
+gateway = gateway.transport(quic);
+```
+
+Hybrid 模式至少需要一个不重复且不小于 `100` 的路由 ID，对端也必须支持 QUIC
+Datagram。认证和其他所有框架路由始终可靠。客户端双向都必须采用相同的路由策略。
+每个 Datagram 恰好包含一帧完整 ELR2；格式错误、超限或队列过载的 Best-effort
+流量可能被丢弃。Inventory、Reward、比赛生命周期等持久化命令不要加入
+`datagram_routes`。
 
 ### UDP
 

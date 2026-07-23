@@ -44,10 +44,10 @@ operations guidance can be maintained together. See
 
 ```toml
 # Contract modules and DNS discovery
-elura = { version = "0.2.5", features = ["adapters"] }
+elura = { version = "0.2.7", features = ["adapters"] }
 
 # Add only concrete infrastructure in use
-elura = { version = "0.2.5", features = ["redis", "sql", "kubernetes"] }
+elura = { version = "0.2.7", features = ["redis", "sql", "kubernetes"] }
 ```
 
 Concrete adapter types live under `elura::adapters` and intentionally stay out

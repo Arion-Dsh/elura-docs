@@ -57,10 +57,12 @@ Serde 将 `std::time::Duration` 编码为秒和纳秒：
 | `handler_timeout` | 5 秒 |
 | `heartbeat_interval` | 30 秒 |
 | `shutdown_timeout` | 10 秒 |
-| 响应缓存 TTL / 容量 | 10 秒 / `128` |
 
 认证路由 `1` 默认限制为每秒 5 个请求，Burst 为 5。对于昂贵的应用路由，应
 添加 `route_rate_limits`。
+
+Gateway 不缓存应用响应。客户端重试策略属于 SDK，持久化幂等属于应用的
+Operation ID 与共享存储。
 
 票据配置显式区分登录与重连有效期：
 

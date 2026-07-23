@@ -86,9 +86,13 @@ when you want the full picture.
 | Prepare a production release | [Production checklist](/reference/production-checklist) |
 
 ::: info Project status
-The current release is **v0.2.5**. Elura now includes typed World business
+The current release is **v0.2.7**. Elura now includes typed World business
 APIs, standalone and distributed Gateway/World runtimes, authoritative realtime
 gameplay primitives, production adapters and providers, and transport-aware
-full-stack testing. The project remains pre-1.0: pin exact versions in
-production and review release notes and compatibility before upgrading.
+full-stack testing. Version 0.2.7 adds per-route QUIC Hybrid mode, keeping
+durable traffic on a reliable stream while selected realtime routes use
+Datagrams. Application retries now always reach World, where durable
+idempotency belongs to application operation IDs and shared storage. The
+project remains pre-1.0: pin exact versions in production and review release
+notes and compatibility before upgrading.
 :::

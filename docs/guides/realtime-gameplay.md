@@ -65,7 +65,7 @@ Enable only the parts used by the application:
 
 ```toml
 [dependencies]
-elura = { version = "0.2.5", features = [
+elura = { version = "0.2.7", features = [
   "room",
   "aoi",
   "simulation",

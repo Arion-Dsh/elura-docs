@@ -60,10 +60,13 @@ Both fields are integers. Most timeouts must be positive.
 | `handler_timeout` | 5 seconds |
 | `heartbeat_interval` | 30 seconds |
 | `shutdown_timeout` | 10 seconds |
-| response cache TTL / capacity | 10 seconds / `128` |
 
 Authentication route `1` is limited by default to 5 requests per second with a
 burst of 5. Add `route_rate_limits` for expensive application routes.
+
+Gateway does not cache application responses. Client retry policy belongs in
+the SDK, while durable idempotency belongs to the application's operation ID
+and shared storage.
 
 Ticket configuration uses explicit login and reconnect lifetimes:
 

@@ -82,8 +82,10 @@ elura init all --dir .
 | 准备生产发布 | [生产检查清单](/zh/reference/production-checklist) |
 
 ::: info 项目状态
-当前版本为 **v0.2.5**。Elura 现已提供类型化 World 业务 API、单体与分布式
+当前版本为 **v0.2.7**。Elura 现已提供类型化 World 业务 API、单体与分布式
 Gateway/World Runtime、权威实时游戏组件、生产级 Adapter 与 Provider，以及可选择
-Transport 的全链路测试能力。项目尚未进入 1.0：生产环境应锁定精确版本，并在升级前
-检查 Release Notes 与兼容性。
+Transport 的全链路测试能力。0.2.7 新增按路由选择的 QUIC Hybrid 模式：持久化
+流量使用可靠 Stream，指定的实时路由使用 Datagram。应用重试现在始终进入 World，
+持久化幂等由应用 Operation ID 和共享存储负责。项目尚未进入 1.0：生产环境应锁定
+精确版本，并在升级前检查 Release Notes 与兼容性。
 :::

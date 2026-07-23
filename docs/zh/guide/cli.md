@@ -33,7 +33,7 @@ elura init <TARGET> [OPTIONS]
 | `monolith` | 单体入口、JSON 配置和 Compose 文件 |
 | `module` | 指定名称的 World 模块骨架 |
 | `route` | 类型化 Rust 路由与 protobuf 定义 |
-| `sdk` | C++17、.NET 8/C# 与 TypeScript ELR2 协议库 |
+| `sdk` | C++20、兼容 Unity 的 C# 9 / .NET Standard 2.1 与 TypeScript ELR2 协议库 |
 | `docker` | Docker Compose 文件与环境变量示例 |
 | `k8s` | Kubernetes/Kustomize 基础配置；`kubernetes` 是别名 |
 | `all` | 项目清单、配置、Gateway、World、Docker 和 Kubernetes |

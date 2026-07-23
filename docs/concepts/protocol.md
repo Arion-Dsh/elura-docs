@@ -31,16 +31,19 @@ to 64 MiB, but application limits should stay as small as practical.
 
 For WebSocket transport, one binary WebSocket message must contain exactly one
 ELR2 frame and the client must negotiate `elura.v2` as the subprotocol. QUIC
-uses `elura.v2` as ALPN. Text WebSocket messages are not part of the protocol.
+uses `elura.v2` as ALPN. Reliable QUIC traffic uses the first client-initiated
+bidirectional stream; in hybrid mode, configured application routes use one
+complete ELR2 frame per QUIC Datagram while framework and unselected routes
+remain on the stream. Text WebSocket messages are not part of the protocol.
 
-Elura can generate matching C++17, C#, and TypeScript codecs. See
+Elura can generate matching C++20, C#, and TypeScript codecs. See
 [Client protocol SDKs](../guides/client-sdks) for the integration boundary and
 transport-specific checks.
 
 ## The same protocol in every language
 
 The Rust `Frame` and `FrameCodec` implementation is the ELR2 reference
-implementation, not a Rust-only transport. Generated C++17, C#, and TypeScript
+implementation, not a Rust-only transport. Generated C++20, C#, and TypeScript
 SDKs encode the same 28-byte header, integer byte order, frame kinds, validation
 rules, and payload bytes. Cross-language golden vectors verify byte-for-byte
 compatibility.
@@ -159,11 +162,16 @@ to route `1`. It does not send route `3` on an unauthenticated connection.
 ## Request IDs and retries
 
 Request IDs are client-generated correlation identifiers and must be non-zero.
-The Gateway maintains a bounded response cache for recently completed requests.
-Retries should reuse the same request ID and route within the configured TTL.
-Do not treat this in-memory cache as durable exactly-once delivery; business
-operations that require idempotency need an application-owned durable key and
-transactional constraint.
+They identify one transport attempt: a response or error echoes the request ID,
+allowing a client to reject a late result after retrying with a new ID. The
+Gateway does not cache or replay application responses; every accepted retry
+reaches the World.
+
+Business operations that require idempotency must carry a stable application
+operation ID in their protobuf payload. Keep that operation ID unchanged across
+attempts and enforce it with shared durable storage and a transactional
+constraint. Do not use the connection-scoped request ID or sequence field as a
+replacement for business idempotency.
 
 ## Compatibility
 

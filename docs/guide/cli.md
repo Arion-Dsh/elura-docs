@@ -33,7 +33,7 @@ Use `elura help init <target>` for target-specific help.
 | `monolith` | Monolith entry point, JSON config, and Compose file |
 | `module` | A named World module skeleton |
 | `route` | A typed Rust route plus protobuf definition |
-| `sdk` | C++17, .NET 8/C#, and TypeScript ELR2 protocol libraries |
+| `sdk` | C++20, Unity-compatible C# 9 / .NET Standard 2.1, and TypeScript ELR2 libraries |
 | `docker` | Docker Compose files and environment example |
 | `k8s` | Kubernetes/Kustomize base; `kubernetes` is an alias |
 | `all` | Project manifest, config, Gateway, World, Docker, and Kubernetes |
