@@ -260,29 +260,36 @@ let identity = registry
 
 ## 应用流程
 
-1. 在应用 HTTPS 端点接收 Credential。
-2. 通过 `IdentityRegistry` 或 `IdentityService` 验证。
-3. 使用 `IdentityBindingStore` 查找或创建应用账户。
-4. 应用封禁、Region、Realm 与账户版本策略。
-5. 创建或刷新上层应用自有的持久登录会话。
-6. 调用 `TicketService::issue_login` 签发短期、一次性的 Elura Gateway 登录票据。
+内置 HTTP 流程可以直接连接身份 Provider，不要求玩家登录两次：
 
-Provider 验证只证明外部身份，不等于授权一个游戏会话。
-
-Gateway 会在认证成功后返回并轮换重连票据，Identity Provider 不应签发重连票据。
-重连票据丢失或过期时，上层应用验证自己的 Refresh Session，再签发新的登录票据。
+1. `POST /elura/auth/login` 把 Provider 名称和 Provider 专用 JSON Credential
+   发送给 `HttpAuthApi`。
+2. `IdentityHttpBackend` 只调用一次 `IdentityService::login`，并通过
+   `IdentityBindingStore` 解析已有应用账户。
+3. 应用实现的 `IdentityHttpPolicy` 授予 HTTP Scope；需要首张 Gateway Ticket
+   时，同时验证角色、Region 与 Realm。
+4. 响应包含可重复使用的 HTTP Access Token、轮换式 Refresh Token，以及可选的
+   第一张短期、一次性 Gateway 登录 Ticket。
+5. 之后可通过 `POST /elura/game/session-ticket`，用有效 Bearer Token 换取新的
+   一次性 Gateway 登录 Ticket，无需再次调用 Provider 登录。
 
 ```rust
-use std::time::Duration;
+use elura::prelude::{IdentityHttpBackend, IdentityHttpPolicy};
 
-use elura::prelude::TicketService;
-
-let tickets = TicketService::new(
-    ticket_key,
-    "game-login",
-    "game-gateway",
-    Duration::from_secs(60),
-    Duration::from_secs(30 * 60),
-)?;
-let login_ticket = tickets.issue_login(identity)?;
+let login_backend = Arc::new(IdentityHttpBackend::new(
+    identity_service,
+    Arc::new(GameIdentityPolicy::new(account_store)),
+));
+let auth_api = HttpAuthApi::new(http_tokens, tickets, shared_replay, login_backend);
 ```
+
+Provider 验证只证明外部身份，不等于授权游戏会话。
+`IdentityHttpPolicy::game_identity` 必须在签发 Ticket 前验证账户归属和准入策略。
+
+适配器只实现已有账户登录。注册与绑定仍由应用显式处理；不要在登录失败后自动
+尝试注册，因为 OAuth 和平台授权码可能只能使用一次。ELR2 认证成功后，Gateway
+负责返回并轮换重连 Ticket；Identity Provider 与 HTTP Access Token 都不能替代
+重连 Ticket。
+
+不使用 `HttpAuthApi` 的应用仍可直接调用 `IdentityService`，再通过
+`TicketService` 签发票据。

@@ -162,7 +162,7 @@ assert_eq!(response.user_id, 42);
 
 ```toml
 [dev-dependencies]
-elura-testkit = "0.2.7"
+elura-testkit = "0.2.8"
 ```
 
 ```rust

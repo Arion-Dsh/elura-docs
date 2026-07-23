@@ -61,7 +61,7 @@ Gateway 与 World 只是这些原语可选的执行和网络宿主。`Room`、`A
 
 ```toml
 [dependencies]
-elura = { version = "0.2.7", features = [
+elura = { version = "0.2.8", features = [
   "room",
   "aoi",
   "simulation",

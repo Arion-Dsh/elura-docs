@@ -1,13 +1,13 @@
 # Client protocol SDKs
 
-Elura can generate local protocol libraries for C++20, C# 9 / .NET Standard
-2.1 (including Unity 6.3 LTS), and strict TypeScript. They implement the public
-Gateway-to-client ELR2 v2 contract so a client does not need to re-create
+Elura can generate local protocol libraries for Rust, C++20, C# 9 / .NET
+Standard 2.1 (including Unity 6.3 LTS), and strict TypeScript. They implement
+the public Elura client ELR2 v2 contract so a client does not need to re-create
 binary framing, reserved routes, or built-in payloads by hand.
 
-These are ports of the same wire contract used by Rust's
-`elura_core::protocol::FrameCodec`; they are not alternative protocols. The
-same frame encoded in Rust, C++20, C#, or TypeScript produces identical bytes.
+They are standalone implementations of the same wire contract used by the
+server; they are not alternative protocols. The same frame encoded in Rust,
+C++20, C#, or TypeScript produces identical bytes.
 
 ## Generate the libraries
 
@@ -20,6 +20,7 @@ elura init sdk --dir .
 Generate only one language when the application does not need the full set:
 
 ```bash
+elura init sdk --language rust --dir .
 elura init sdk --language cpp --dir .
 elura init sdk --language csharp --dir .
 elura init sdk --language typescript --dir .
@@ -32,21 +33,22 @@ scaffolds. Existing customized files are preserved by default.
 
 | Output | Runtime | Included checks |
 | --- | --- | --- |
+| `sdk/rust/` | Standalone Rust 2024 crate with Tokio codec integration | Cargo golden-vector tests |
 | `sdk/cpp/` | Dependency-free C++20 | CMake/CTest golden vectors |
-| `sdk/csharp/` | C# 9 / .NET Standard 2.1; Unity 6.3 LTS compatible | Golden-vector executable on .NET 8 |
+| `sdk/csharp/` | C# 9 / .NET Standard 2.1; Unity 6.3 LTS compatible | Golden-vector executable on .NET 9 |
 | `sdk/typescript/` | Dependency-free strict ES module for browsers and Node.js | Node test runner and type check |
 
-All three implement frame encoding, exact-message decoding, TCP stream
+All four implement frame encoding, exact-message decoding, TCP stream
 reassembly, reserved routes, standard errors, authentication and reconnect
-payloads, and Session Control protobuf encoding. TypeScript and C# provide JSON
-encoders and decoders for those built-in payloads; C++ exposes the matching
-model structs for the application's selected JSON library. They also include
-`proto/session_control.proto` for applications that prefer generated protobuf
-types.
+payloads, and Session Control protobuf encoding. Rust, TypeScript, and C#
+provide JSON encoders and decoders for those built-in payloads; C++ exposes
+the matching model structs for the application's selected JSON library. They
+also include `proto/session_control.proto` for applications that prefer
+generated protobuf types.
 
 The standard error model includes optional `retry_after_ms`. For a retryable
 `REALM_FULL`, return to the application login queue or wait at least that delay;
-do not spin on Gateway authentication.
+do not spin on the authentication route.
 
 The SDKs intentionally do **not** open sockets or dispatch application routes.
 Your client still owns connection lifecycle, renewal scheduling, reconnect
@@ -60,14 +62,23 @@ back to the SDK.
 
 ::: code-group
 
+```rust [Rust]
+use elura_protocol::{Elr2Codec, EluraProtocol};
+use tokio_util::codec::Framed;
+
+let mut connection = Framed::new(stream, Elr2Codec::default());
+let request = EluraProtocol::authenticate(next_request_id, login_ticket)?;
+connection.send(request).await?;
+```
+
 ```cpp [C++20]
 #include <elura/elr2.hpp>
 
-auto request = elura::Frame::request(
+auto request = elura::Elr2Frame::request(
     100, next_request_id++, elura::to_bytes(R"({"x":10,"y":20})"));
-send_bytes(elura::encode_frame(request));
+send_bytes(elura::Elr2Codec::encode(request));
 
-elura::StreamDecoder decoder;
+elura::Elr2StreamDecoder decoder;
 decoder.append(received_chunk);
 while (auto frame = decoder.next()) {
   handle(*frame);
@@ -75,7 +86,7 @@ while (auto frame = decoder.next()) {
 ```
 
 ```csharp [Unity / C# 9]
-var request = GatewayFrames.Authenticate(nextRequestId++, loginTicket);
+var request = EluraProtocol.Authenticate(nextRequestId++, loginTicket);
 transport.Send(Elr2Codec.Encode(request));
 
 decoder.Append(receivedChunk);
@@ -86,9 +97,9 @@ while (decoder.TryRead(out var frame))
 ```
 
 ```ts [TypeScript]
-import { Elr2, Gateway } from "@elura/protocol";
+import { Elr2, EluraProtocol } from "@elura/protocol";
 
-const request = Gateway.authenticate(nextRequestId++, loginTicket);
+const request = EluraProtocol.authenticate(nextRequestId++, loginTicket);
 socket.send(Elr2.encode(request));
 
 socket.binaryType = "arraybuffer";
@@ -97,26 +108,30 @@ socket.onmessage = ({ data }) => handle(Elr2.decode(data as ArrayBuffer));
 
 :::
 
-C++ accepts `std::vector`, `std::array`, and `std::span` byte ranges directly.
-C# supplies built-in authentication/reconnect JSON codecs without depending on
-`System.Text.Json`. TypeScript accepts string payloads as UTF-8 and accepts both
-`ArrayBuffer` and `Uint8Array` inputs.
+Rust's `Elr2Codec` integrates directly with `tokio_util::codec::Framed`. C++
+accepts `std::vector`, `std::array`, and `std::span` byte ranges directly. C#
+supplies built-in authentication/reconnect JSON codecs without depending on
+`System.Text.Json`. TypeScript accepts string payloads as UTF-8 and accepts
+both `ArrayBuffer` and `Uint8Array` inputs.
 
 ## Silent reconnect flow
 
 1. Decode the route `1` authentication response and securely retain only
    `response.reconnect.ticket`.
 2. Schedule renewal before `response.reconnect.expires_in_seconds` elapses.
-3. While connected, send the current ticket as `ReconnectTicketRequest` to
-   route `3`. TypeScript and C# expose `encodeReconnectRequest(currentTicket)`;
-   C++ applications serialize the provided model with their JSON library.
+3. While connected, call `EluraProtocol::renew_reconnect_ticket(...)` in Rust,
+   `EluraProtocol.renewReconnectTicket(...)` in TypeScript, or
+   `EluraProtocol.RenewReconnectTicket(...)` in C#. C++ applications serialize
+   `ReconnectTicketRenewalRequest` with their JSON library and use
+   `EluraRoutes::RenewReconnectTicket`.
 4. Replace the stored ticket only after decoding the successful renewal
    response.
 5. After a disconnect, open a new transport and call route `1` with the stored
    reconnect ticket. Save the reconnect ticket from the new authentication
    response.
-6. If no valid reconnect ticket exists, obtain a login ticket from the
-   application login service through its refresh-session flow.
+6. If no valid reconnect ticket exists, call
+   `/elura/game/session-ticket` with a valid HTTP access token. Rotate an
+   expired access token through `/elura/auth/refresh` first.
 
 The ticket is a credential. Keep it out of logs and application telemetry.
 
@@ -156,6 +171,10 @@ Run the check that matches the generated language before integrating transport
 code:
 
 ::: code-group
+
+```bash [Rust]
+cargo test --manifest-path sdk/rust/Cargo.toml
+```
 
 ```bash [C++]
 cmake -S sdk/cpp -B sdk/cpp/build -DBUILD_TESTING=ON

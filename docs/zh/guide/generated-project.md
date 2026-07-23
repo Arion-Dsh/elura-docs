@@ -77,7 +77,7 @@ Gateway 票据配置使用 `login_ttl` 与 `reconnect_ttl`。上层登录服务�
 ```toml
 [dependencies]
 prost = "0.14"
-elura = { version = "0.2.7", features = ["adapters", "monolith"] }
+elura = { version = "0.2.8", features = ["adapters", "monolith"] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 tokio = { version = "1", features = ["macros", "rt-multi-thread", "signal"] }
@@ -87,7 +87,7 @@ tokio = { version = "1", features = ["macros", "rt-multi-thread", "signal"] }
 只有同时构建单进程入口时才需要保留 `monolith`：
 
 ```toml
-elura = { version = "0.2.7", features = ["redis"] }
+elura = { version = "0.2.8", features = ["redis"] }
 ```
 
 完整矩阵见 [Crate 与功能开关](/zh/reference/crates-and-features)。

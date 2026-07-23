@@ -27,7 +27,7 @@ publish = false
 
 [dependencies]
 prost = "0.14"
-elura = { version = "0.2.7", features = ["monolith"] }
+elura = { version = "0.2.8", features = ["monolith"] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 tokio = { version = "1", features = ["macros", "rt-multi-thread", "signal"] }
@@ -147,8 +147,8 @@ cargo run --bin monolith
 在另一个终端验证：
 
 ```bash
-curl -i http://127.0.0.1:17001/elura/healthz
-curl -i http://127.0.0.1:17001/elura/readyz
+curl -i http://127.0.0.1:17001/healthz
+curl -i http://127.0.0.1:17001/readyz
 ```
 
 两个端点都返回 `204 No Content`。命令在进程内分发，因此没有 World 网络端口。

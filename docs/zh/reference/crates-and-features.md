@@ -52,7 +52,7 @@ Workspace 被拆分为职责明确的 Crate。多数应用只需依赖 `elura` �
 | `kubernetes` | `adapters`、`gateway`、Kubernetes 适配器实现 |
 | `admin` | `adapters`、适配器支持的管理能力 |
 | `providers` | `core`、基础 `elura-providers` |
-| `identity` | 身份 Provider 集合 |
+| `identity` | 身份 Provider 集合；同时启用 `gateway` 时也启用 Gateway HTTP 身份桥接 |
 | `notification-alisms` | 阿里云短信通知 Provider |
 | `otp` | OTP 服务与存储集成 |
 | `payment-alipay` | 支付宝 |
@@ -105,6 +105,11 @@ use elura::providers::identity::GuestProvider; // `identity`
 use elura::providers::payment::WechatPayPayment; // `payment-wechat-pay`
 ```
 
+同时启用 `gateway` 与 `identity` 后，Prelude 还会导出
+`IdentityHttpBackend` 和 `IdentityHttpPolicy`。`HttpAuthApi`、
+`HttpBearerAuth`、`AuthenticatedHttp` 以及 HTTP Token 类型由常规
+`gateway`/`core` Feature 提供。
+
 这样可以在 Code Review 中直接看出 Redis、Kubernetes、SQL 或第三方 API
 依赖。条目是否可用仍由 Feature 决定。Provider 操作使用
 `elura::providers::ProviderResult`；启用对应 Feature 后，常用 Provider Trait
@@ -114,19 +119,19 @@ use elura::providers::payment::WechatPayPayment; // `payment-wechat-pay`
 
 ```toml
 # Gateway + World runtime only (default)
-elura = "0.2.7"
+elura = "0.2.8"
 
 # Generated split project with DNS discovery types
-elura = { version = "0.2.7", features = ["adapters"] }
+elura = { version = "0.2.8", features = ["adapters"] }
 
 # Redis-backed distributed application
-elura = { version = "0.2.7", features = ["redis"] }
+elura = { version = "0.2.8", features = ["redis"] }
 
 # Kubernetes discovery and SQL account versions
-elura = { version = "0.2.7", features = ["kubernetes", "sql"] }
+elura = { version = "0.2.8", features = ["kubernetes", "sql"] }
 
 # 权威实时游戏原语
-elura = { version = "0.2.7", features = [
+elura = { version = "0.2.8", features = [
   "room", "aoi", "simulation", "netcode", "replication",
   "lag-compensation",
 ] }

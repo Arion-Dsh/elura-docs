@@ -7,12 +7,13 @@
 
 | 端点 | 认证 | 成功响应 | 含义 |
 | --- | --- | --- | --- |
-| `GET /elura/healthz` | 无 | `204` | 进程和管理循环存活 |
-| `GET /elura/readyz` | 无 | `204` | 进程可接收新流量 |
+| `GET /healthz` | 无 | `204` | 进程和管理循环存活 |
+| `GET /readyz` | 无 | `204` | 进程可接收新流量 |
 | `GET /elura/version` | 无 | `200` JSON | Elura 版本、运行时、组件和实例 |
 
 Readiness 失败返回 `503` 和简短原因。使用 Readiness 将进程摘除流量；只有在
-进程真正卡死时才通过 Liveness 重启。
+进程真正卡死时才通过 Liveness 重启。两个探针特意保留在监听器根路径；指标、
+诊断和管理路由继续使用 `/elura/...`。
 
 ## 指标与诊断
 
@@ -88,7 +89,7 @@ curl -H "Authorization: Bearer $APP_ADMIN_TOKEN" \
 
 ## 事故排查
 
-1. 检查受影响实例的 `/elura/healthz`、`/elura/readyz` 和 `/elura/version`。
+1. 检查受影响实例的 `/healthz`、`/readyz` 和 `/elura/version`。
 2. 重启前保存 `/elura/debug/stats` 与 `/elura/debug/backend`。
 3. 对比 Gateway 后端错误与 World 命令故障和延迟。
 4. 检查发现到的目标与 World Readiness。

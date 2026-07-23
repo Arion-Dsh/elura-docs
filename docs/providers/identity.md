@@ -275,33 +275,40 @@ let identity = registry
 
 ## Application flow
 
-1. Receive credentials on an application HTTPS endpoint.
-2. Ask `IdentityRegistry` or `IdentityService` to authenticate them.
-3. Resolve or create the application account through `IdentityBindingStore`.
-4. Apply application bans, region, realm, and account-version policy.
-5. Create or refresh the application-owned durable login session.
-6. Call `TicketService::issue_login` to issue a short-lived, single-use Elura
-   Gateway login ticket.
+The built-in HTTP path connects identity providers without asking the player to
+log in again:
 
-Provider authentication proves an external identity; it does not by itself
-authorize a game session.
-
-The Gateway returns and rotates reconnect tickets after authentication. The
-identity provider must not issue reconnect tickets. When a reconnect ticket is
-unavailable or expired, the application validates its own refresh session and
-issues another login ticket.
+1. `POST /elura/auth/login` sends a provider name and provider-specific JSON
+   credential to `HttpAuthApi`.
+2. `IdentityHttpBackend` calls `IdentityService::login` exactly once and
+   resolves the existing application account through `IdentityBindingStore`.
+3. The application `IdentityHttpPolicy` grants HTTP scopes and, when requested,
+   verifies the selected player, region, and realm.
+4. The response contains reusable HTTP access credentials, a rotating refresh
+   token, and optionally the first short-lived, single-use Gateway login
+   ticket.
+5. Later, `POST /elura/game/session-ticket` exchanges a valid bearer token for
+   another one-time Gateway login ticket without another provider login.
 
 ```rust
-use std::time::Duration;
+use elura::prelude::{IdentityHttpBackend, IdentityHttpPolicy};
 
-use elura::prelude::TicketService;
-
-let tickets = TicketService::new(
-    ticket_key,
-    "game-login",
-    "game-gateway",
-    Duration::from_secs(60),
-    Duration::from_secs(30 * 60),
-)?;
-let login_ticket = tickets.issue_login(identity)?;
+let login_backend = Arc::new(IdentityHttpBackend::new(
+    identity_service,
+    Arc::new(GameIdentityPolicy::new(account_store)),
+));
+let auth_api = HttpAuthApi::new(http_tokens, tickets, shared_replay, login_backend);
 ```
+
+Provider authentication proves an external identity; it does not by itself
+authorize a game session. `IdentityHttpPolicy::game_identity` must verify
+account ownership and admission policy before a ticket is issued.
+
+The adapter deliberately implements existing-account login only. Registration
+and linking remain explicit application flows; do not retry a failed login as
+registration because OAuth and platform authorization codes may be single-use.
+After ELR2 authentication, Gateway returns and rotates reconnect tickets. The
+identity provider and HTTP access token do not replace reconnect tickets.
+
+Applications that do not use `HttpAuthApi` can still authenticate through
+`IdentityService` and issue tickets directly with `TicketService`.

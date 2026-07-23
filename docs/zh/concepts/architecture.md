@@ -35,9 +35,11 @@ Gateway 是信任和连接边界，负责：
 的状态——票据防重放、在线状态、Push、会话控制、准入策略和账户版本——必须
 显式使用共享适配器。
 
-上层登录服务负责 Credential 验证、账户绑定、Region/Realm 选择、持久 Refresh
-Session，并调用 `TicketService::issue_login`。Gateway 只负责短期、一次性的连接
-Credential 及其防重放；Refresh Token 和设备登录会话不属于 Gateway。
+上层登录服务负责 Credential 验证、账户绑定、Region/Realm/角色授权和 Scope
+策略。它可以挂载 `HttpAuthApi`，签发 Access/Refresh Token 并交换一次性 Gateway
+Ticket，也可以直接调用 `TicketService::issue_login`。实时 Gateway Session
+始终只使用短期、一次性的登录或重连 Ticket 完成认证；HTTP Access Token 在每次
+HTTP 请求上独立验证。
 
 ## World 的职责
 

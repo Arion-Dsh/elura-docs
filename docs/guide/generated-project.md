@@ -82,7 +82,7 @@ feature keeps the same manifest ready for `elura init monolith`:
 ```toml
 [dependencies]
 prost = "0.14"
-elura = { version = "0.2.7", features = ["adapters", "monolith"] }
+elura = { version = "0.2.8", features = ["adapters", "monolith"] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 tokio = { version = "1", features = ["macros", "rt-multi-thread", "signal"] }
@@ -93,7 +93,7 @@ already enables the adapter layer plus Gateway and World. Keep `monolith` only
 when the application also builds the single-process binary:
 
 ```toml
-elura = { version = "0.2.7", features = ["redis"] }
+elura = { version = "0.2.8", features = ["redis"] }
 ```
 
 See [Crates and feature flags](../reference/crates-and-features) for the full

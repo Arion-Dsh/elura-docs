@@ -14,13 +14,16 @@ Authorization: Bearer <admin-token>
 
 | 方法与路径 | 认证 | 响应 |
 | --- | --- | --- |
-| `GET /elura/healthz` | 无 | `204` |
-| `GET /elura/readyz` | 无 | `204`，或 `503` 加原因 |
+| `GET /healthz` | 无 | `204` |
+| `GET /readyz` | 无 | `204`，或 `503` 加原因 |
 | `GET /elura/version` | 无 | 版本/组件 JSON |
 | `GET /elura/metrics` | 受保护 | Prometheus 文本 |
 | `GET /elura/debug/stats` | 受保护 | 运行时统计 JSON |
 | `GET /elura/debug/backend` | 受保护 | Gateway 保护状态 JSON 或 `404` |
 | `GET /elura/debug/routes` | 受保护 | World 路由 JSON 或 `404` |
+
+`/healthz` 与 `/readyz` 为 Kubernetes 和云负载均衡探针特意保留在监听器根路径；
+其他框架自有 HTTP 路由统一使用 `/elura/...` 命名空间。
 
 ## 强制退出
 

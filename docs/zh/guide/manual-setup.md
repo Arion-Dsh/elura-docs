@@ -42,7 +42,7 @@ publish = false
 
 [dependencies]
 prost = "0.14"
-elura = { version = "0.2.7", features = ["adapters"] }
+elura = { version = "0.2.8", features = ["adapters"] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 tokio = { version = "1", features = ["macros", "rt-multi-thread", "signal"] }
@@ -268,9 +268,9 @@ cargo run --bin gateway
 等待服务发现完成第一次刷新，然后检查私有管理端点：
 
 ```bash
-curl -i http://127.0.0.1:18001/elura/healthz
-curl -i http://127.0.0.1:17001/elura/healthz
-curl -i http://127.0.0.1:17001/elura/readyz
+curl -i http://127.0.0.1:18001/healthz
+curl -i http://127.0.0.1:17001/healthz
+curl -i http://127.0.0.1:17001/readyz
 ```
 
 健康端点返回 `204 No Content`。

@@ -117,9 +117,9 @@ cargo run --bin gateway
 在第三个终端检查管理接口：
 
 ```bash
-curl -i http://127.0.0.1:18001/elura/healthz
-curl -i http://127.0.0.1:17001/elura/healthz
-curl -i http://127.0.0.1:17001/elura/readyz
+curl -i http://127.0.0.1:18001/healthz
+curl -i http://127.0.0.1:17001/healthz
+curl -i http://127.0.0.1:17001/readyz
 ```
 
 健康的接口会返回 `204 No Content`。此时本地拓扑如下：

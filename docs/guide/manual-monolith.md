@@ -28,7 +28,7 @@ publish = false
 
 [dependencies]
 prost = "0.14"
-elura = { version = "0.2.7", features = ["monolith"] }
+elura = { version = "0.2.8", features = ["monolith"] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 tokio = { version = "1", features = ["macros", "rt-multi-thread", "signal"] }
@@ -149,8 +149,8 @@ cargo run --bin monolith
 Verify it from another terminal:
 
 ```bash
-curl -i http://127.0.0.1:17001/elura/healthz
-curl -i http://127.0.0.1:17001/elura/readyz
+curl -i http://127.0.0.1:17001/healthz
+curl -i http://127.0.0.1:17001/readyz
 ```
 
 Both endpoints return `204 No Content`. There is no World network port because

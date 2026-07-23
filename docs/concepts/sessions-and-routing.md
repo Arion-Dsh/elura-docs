@@ -16,11 +16,13 @@ An authenticated identity contains:
 | `generation` | Account version used for revocation |
 
 The application login service authenticates credentials, resolves the account,
-selects region and realm, and calls `TicketService::issue_login`. The resulting
-login ticket is short-lived and single-use. Every ticket carries an explicit
-`purpose` of `login` or `reconnect`; the Gateway verifies issuer, audience,
-signature, purpose, lifetime, identity, and replay state before binding that
-identity to a session.
+and authorizes the selected region, realm, and player. It can call
+`TicketService::issue_login` directly, or mount `HttpAuthApi` and let
+`POST /elura/auth/login` or `POST /elura/game/session-ticket` issue the
+connection credential. The resulting login ticket is short-lived and
+single-use. Every ticket carries an explicit `purpose` of `login` or
+`reconnect`; the Gateway verifies issuer, audience, signature, purpose,
+lifetime, identity, and replay state before binding that identity to a session.
 
 `TicketService` has separate lifetimes for the two purposes. The generated
 Gateway defaults are 60 seconds for `login_ttl` and 30 minutes for
@@ -43,13 +45,15 @@ replacement. After a disconnect, the client opens a new connection and sends
 the latest reconnect ticket to authentication route `1`; successful
 authentication consumes it and returns the next reconnect ticket.
 
-If the reconnect ticket is unavailable or expired, the client asks the
-application login service for a new login ticket using an application-owned
-refresh session. Elura owns Gateway ticket validation and rotation. The upper
-application owns refresh tokens, device sessions, credential reauthentication,
-and the decision to show login UI. Sequence numbers help the runtime reason
-about delivered traffic around a disconnect; retry timing, state reconciliation,
-and UI behavior remain client policy.
+If the reconnect ticket is unavailable or expired, a client with a valid HTTP
+access token calls `/elura/game/session-ticket`. If the access token has
+expired, it first rotates its single-use refresh token at
+`/elura/auth/refresh`; provider login UI is needed only when that refresh flow
+can no longer succeed. Elura owns token and Gateway-ticket validation and
+rotation. The upper application owns account policy, credential
+reauthentication, and the decision to show login UI. Sequence numbers help the
+runtime reason about delivered traffic around a disconnect; retry timing, state
+reconciliation, and UI behavior remain client policy.
 
 ## Login queue and capacity
 

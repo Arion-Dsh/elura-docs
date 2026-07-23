@@ -11,7 +11,7 @@
 | 构建房间、固定步长模拟、AOI、预测、状态同步或延迟补偿 | [实时游戏开发](./realtime-gameplay) |
 | 接入 TCP、UDP、WebSocket、WebTransport、QUIC 或自定义传输 | [客户端传输](./transports) |
 | 添加 Axum API、回调或内部 HTTP 端点 | [应用 HTTP 服务](./application-http) |
-| 连接 C++、C# 或 TypeScript 客户端 | [客户端协议 SDK](./client-sdks) |
+| 连接 Rust、C++、C# 或 TypeScript 客户端 | [客户端协议 SDK](./client-sdks) |
 | 加载并验证应用配置 | [配置](./configuration) |
 | 接入身份、OTP、通知或支付 | [Providers](./providers) |
 

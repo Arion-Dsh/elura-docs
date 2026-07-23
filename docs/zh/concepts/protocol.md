@@ -35,14 +35,15 @@ QUIC 流量使用客户端发起的第一条双向 Stream；Hybrid 模式下，�
 每个 QUIC Datagram 承载一帧完整 ELR2，框架路由和未指定路由仍使用 Stream。
 协议不支持 WebSocket 文本 Message。
 
-Elura 可以生成对应的 C++20、C# 与 TypeScript 编解码器。接入边界和不同传输
-方式的检查见[客户端协议 SDK](../guides/client-sdks)。
+Elura 可以生成对应的独立 Rust、C++20、C# 与 TypeScript 编解码器。接入边界和
+不同传输方式的检查见[客户端协议 SDK](../guides/client-sdks)。
 
 ## 所有语言使用同一套协议
 
-Rust 的 `Frame` 与 `FrameCodec` 是 ELR2 的参考实现，而不是 Rust 专用传输协议。
-生成的 C++20、C# 和 TypeScript SDK 会编码完全相同的 28 字节帧头、整数字节序、
-帧类型、校验规则和 Payload 字节。跨语言黄金向量会验证逐字节兼容性。
+服务端 Rust 的 `Frame` 与 `FrameCodec` 是 ELR2 的参考实现，而不是 Rust 专用
+传输协议。生成的 Rust、C++20、C# 和 TypeScript SDK 会编码完全相同的 28 字节
+帧头、整数字节序、帧类型、校验规则和 Payload 字节。跨语言黄金向量会验证
+逐字节兼容性。
 
 存在非 Rust 客户端时，不要把 ELR2 换成原生 Struct 布局、`bincode` 等 Rust
 专用序列化格式；这些格式没有稳定的跨语言 ABI。ELR2 提供语言无关的帧封装，

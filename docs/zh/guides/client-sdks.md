@@ -1,12 +1,11 @@
 # 客户端协议 SDK
 
-Elura 可以生成 C++20、C# 9 / .NET Standard 2.1（兼容 Unity 6.3 LTS）和严格
-TypeScript 本地协议库。它们实现公开的 Gateway-to-client ELR2 v2 契约，客户端
-不需要重复手写二进制帧、保留路由和内置 Payload。
+Elura 可以生成 Rust、C++20、C# 9 / .NET Standard 2.1（兼容 Unity 6.3 LTS）
+和严格 TypeScript 本地协议库。它们实现公开的 Elura 客户端 ELR2 v2 契约，
+客户端不需要重复手写二进制帧、保留路由和内置 Payload。
 
-这些 SDK 是 Rust `elura_core::protocol::FrameCodec` 所用 Wire Contract 的其他
-语言实现，并不是不同协议。同一个帧由 Rust、C++20、C# 或 TypeScript 编码时，
-会产生完全相同的字节。
+这些 SDK 是服务端所用 Wire Contract 的独立实现，并不是不同协议。同一个帧由
+Rust、C++20、C# 或 TypeScript 编码时，会产生完全相同的字节。
 
 ## 生成协议库
 
@@ -19,6 +18,7 @@ elura init sdk --dir .
 应用不需要全部语言时，只生成其中一种：
 
 ```bash
+elura init sdk --language rust --dir .
 elura init sdk --language cpp --dir .
 elura init sdk --language csharp --dir .
 elura init sdk --language typescript --dir .
@@ -31,18 +31,19 @@ elura init sdk --language typescript --dir .
 
 | 输出目录 | 运行环境 | 自带检查 |
 | --- | --- | --- |
+| `sdk/rust/` | 独立 Rust 2024 crate，集成 Tokio codec | Cargo 黄金向量测试 |
 | `sdk/cpp/` | 无第三方依赖的 C++20 | CMake/CTest 黄金向量 |
-| `sdk/csharp/` | C# 9 / .NET Standard 2.1，兼容 Unity 6.3 LTS | 在 .NET 8 上运行黄金向量 |
+| `sdk/csharp/` | C# 9 / .NET Standard 2.1，兼容 Unity 6.3 LTS | 在 .NET 9 上运行黄金向量 |
 | `sdk/typescript/` | 浏览器与 Node.js 可用、无运行时依赖的严格 ES Module | Node 测试与类型检查 |
 
-三套实现都包含帧编码、完整消息解码、TCP 流重组、保留路由、标准错误、认证与
-重连 Payload 以及 Session Control protobuf 编码。TypeScript 与 C# 为这些内置
-Payload 提供 JSON Encoder/Decoder；C++ 提供对应的模型 Struct，由应用选择的
-JSON 库完成序列化。项目中还会包含
+四套实现都包含帧编码、完整消息解码、TCP 流重组、保留路由、标准错误、认证与
+重连 Payload 以及 Session Control protobuf 编码。Rust、TypeScript 与 C# 为
+这些内置 Payload 提供 JSON Encoder/Decoder；C++ 提供对应的模型 Struct，由
+应用选择的 JSON 库完成序列化。项目中还会包含
 `proto/session_control.proto`，便于希望自行生成 protobuf 类型的应用使用。
 
 标准错误模型包含可选的 `retry_after_ms`。收到可重试的 `REALM_FULL` 时，应回到
-上层应用登录队列，或至少等待该延迟；不得对 Gateway 认证进行忙循环重试。
+上层应用登录队列，或至少等待该延迟；不得对认证路由进行忙循环重试。
 
 SDK 有意**不负责**打开 Socket 或分发应用路由。连接生命周期、续票调度、重连
 退避、请求关联以及 `100+` 路由的消息编码仍由客户端负责。
@@ -54,14 +55,23 @@ SDK 有意**不负责**打开 Socket 或分发应用路由。连接生命周期�
 
 ::: code-group
 
+```rust [Rust]
+use elura_protocol::{Elr2Codec, EluraProtocol};
+use tokio_util::codec::Framed;
+
+let mut connection = Framed::new(stream, Elr2Codec::default());
+let request = EluraProtocol::authenticate(next_request_id, login_ticket)?;
+connection.send(request).await?;
+```
+
 ```cpp [C++20]
 #include <elura/elr2.hpp>
 
-auto request = elura::Frame::request(
+auto request = elura::Elr2Frame::request(
     100, next_request_id++, elura::to_bytes(R"({"x":10,"y":20})"));
-send_bytes(elura::encode_frame(request));
+send_bytes(elura::Elr2Codec::encode(request));
 
-elura::StreamDecoder decoder;
+elura::Elr2StreamDecoder decoder;
 decoder.append(received_chunk);
 while (auto frame = decoder.next()) {
   handle(*frame);
@@ -69,7 +79,7 @@ while (auto frame = decoder.next()) {
 ```
 
 ```csharp [Unity / C# 9]
-var request = GatewayFrames.Authenticate(nextRequestId++, loginTicket);
+var request = EluraProtocol.Authenticate(nextRequestId++, loginTicket);
 transport.Send(Elr2Codec.Encode(request));
 
 decoder.Append(receivedChunk);
@@ -80,9 +90,9 @@ while (decoder.TryRead(out var frame))
 ```
 
 ```ts [TypeScript]
-import { Elr2, Gateway } from "@elura/protocol";
+import { Elr2, EluraProtocol } from "@elura/protocol";
 
-const request = Gateway.authenticate(nextRequestId++, loginTicket);
+const request = EluraProtocol.authenticate(nextRequestId++, loginTicket);
 socket.send(Elr2.encode(request));
 
 socket.binaryType = "arraybuffer";
@@ -91,21 +101,25 @@ socket.onmessage = ({ data }) => handle(Elr2.decode(data as ArrayBuffer));
 
 :::
 
-C++ 可直接接收 `std::vector`、`std::array` 和 `std::span` 字节区间。C# 内置认证
-与重连 JSON 编解码，并且不依赖 `System.Text.Json`。TypeScript 会自动把字符串
-Payload 编码为 UTF-8，并直接接收 `ArrayBuffer` 或 `Uint8Array`。
+Rust 的 `Elr2Codec` 可直接与 `tokio_util::codec::Framed` 集成。C++ 可直接接收
+`std::vector`、`std::array` 和 `std::span` 字节区间。C# 内置认证与重连 JSON
+编解码，并且不依赖 `System.Text.Json`。TypeScript 会自动把字符串 Payload
+编码为 UTF-8，并直接接收 `ArrayBuffer` 或 `Uint8Array`。
 
 ## 静默重连流程
 
 1. 解码路由 `1` 的认证响应，只安全保存 `response.reconnect.ticket`。
 2. 根据 `response.reconnect.expires_in_seconds` 在过期前安排续票。
-3. 保持连接时，把当前票据作为 `ReconnectTicketRequest` 发送到路由 `3`。
-   TypeScript 与 C# 提供 `encodeReconnectRequest(currentTicket)`；C++ 应用使用
-   自己选择的 JSON 库序列化已有模型。
+3. 保持连接时，Rust 调用 `EluraProtocol::renew_reconnect_ticket(...)`，
+   TypeScript 调用 `EluraProtocol.renewReconnectTicket(...)`，C# 调用
+   `EluraProtocol.RenewReconnectTicket(...)`。C++ 应用使用自己的 JSON 库序列化
+   `ReconnectTicketRenewalRequest`，并发送到 `EluraRoutes::RenewReconnectTicket`。
 4. 成功解码续票响应后，才用返回的新票据替换本地票据。
 5. 断线后建立新传输连接，用保存的重连票据调用路由 `1`，再保存新认证响应中的
    重连票据。
-6. 没有有效重连票据时，通过上层登录服务的 Refresh Session 获取登录票据。
+6. 没有有效重连票据时，使用有效 HTTP Access Token 调用
+   `/elura/game/session-ticket`；Access Token 过期时先通过
+   `/elura/auth/refresh` 轮换。
 
 票据本身是 Credential，不应写入日志或应用遥测。
 
@@ -137,6 +151,10 @@ Payload 编码为 UTF-8，并直接接收 `ArrayBuffer` 或 `Uint8Array`。
 
 ::: code-group
 
+```bash [Rust]
+cargo test --manifest-path sdk/rust/Cargo.toml
+```
+
 ```bash [C++]
 cmake -S sdk/cpp -B sdk/cpp/build -DBUILD_TESTING=ON
 cmake --build sdk/cpp/build
@@ -156,7 +174,7 @@ npm test
 
 :::
 
-这些检查在三种语言中使用同一组协议黄金向量。升级 Elura 并重新生成 SDK 后，
+这些检查在四种语言中使用同一组协议黄金向量。升级 Elura 并重新生成 SDK 后，
 应再次运行它们。
 
 ## 应用消息

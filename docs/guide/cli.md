@@ -78,17 +78,17 @@ reviewable.
 
 ## Generate client protocol SDKs
 
-Generate all three supported client libraries:
+Generate all four supported client libraries:
 
 ```bash
 elura init sdk --dir .
 ```
 
-Or select one language with `--language cpp`, `--language csharp`, or
-`--language typescript`. The output lives under `sdk/<language>/` and includes
-ELR2 frame codecs, built-in Gateway contracts, Session Control protobuf, and
-golden-vector tests. Socket ownership and application-route dispatch remain in
-your client.
+Or select one language with `--language rust`, `--language cpp`,
+`--language csharp`, or `--language typescript`. The output lives under
+`sdk/<language>/` and includes ELR2 frame codecs, reserved Elura routes,
+Session Control protobuf, and golden-vector tests. Socket ownership and
+application-route dispatch remain in your client.
 
 See [Client protocol SDKs](../guides/client-sdks) for transport rules and test
 commands.

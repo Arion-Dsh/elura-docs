@@ -15,13 +15,17 @@ without a token.
 
 | Method and path | Auth | Response |
 | --- | --- | --- |
-| `GET /elura/healthz` | No | `204` |
-| `GET /elura/readyz` | No | `204`, or `503` plus reason |
+| `GET /healthz` | No | `204` |
+| `GET /readyz` | No | `204`, or `503` plus reason |
 | `GET /elura/version` | No | Version/component JSON |
 | `GET /elura/metrics` | Protected | Prometheus text |
 | `GET /elura/debug/stats` | Protected | Runtime stats JSON |
 | `GET /elura/debug/backend` | Protected | Gateway protection JSON or `404` |
 | `GET /elura/debug/routes` | Protected | World route JSON or `404` |
+
+`/healthz` and `/readyz` intentionally stay at the listener root for
+Kubernetes and cloud load-balancer probes. Other framework-owned HTTP routes
+use the `/elura/...` namespace.
 
 ## Force logout
 

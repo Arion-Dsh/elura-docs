@@ -37,10 +37,12 @@ presence, push, session control, admission, and account versions—needs an
 explicit shared adapter.
 
 The application login service owns credential authentication, account binding,
-region/realm selection, durable refresh sessions, and calls
-`TicketService::issue_login`. Gateway owns only the short-lived, single-use
-connection credentials and their replay protection. Refresh tokens and device
-login sessions do not belong in Gateway.
+region/realm/player authorization, and scope policy. It may mount
+`HttpAuthApi` for access/refresh credentials and one-time Gateway-ticket
+exchange, or call `TicketService::issue_login` directly. The live Gateway
+Session still authenticates only with short-lived, single-use login or
+reconnect tickets; HTTP access tokens are validated independently on HTTP
+requests.
 
 ## World responsibilities
 

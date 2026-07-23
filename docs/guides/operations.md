@@ -8,13 +8,14 @@ operational traffic out of the ELR2 protocol path.
 
 | Endpoint | Authentication | Success | Meaning |
 | --- | --- | --- | --- |
-| `GET /elura/healthz` | None | `204` | Process and admin loop are alive |
-| `GET /elura/readyz` | None | `204` | Process can accept new traffic |
+| `GET /healthz` | None | `204` | Process and admin loop are alive |
+| `GET /readyz` | None | `204` | Process can accept new traffic |
 | `GET /elura/version` | None | `200` JSON | Elura version, runtime, component, instance |
 
 A failed readiness check returns `503` with a short reason. Use readiness to
 remove the process from traffic; use liveness only to recover a process that is
-actually stuck.
+actually stuck. The two probe paths intentionally remain at the listener root;
+metrics, diagnostics, and administrative routes stay under `/elura/...`.
 
 ## Metrics and diagnostics
 
@@ -99,7 +100,7 @@ See [Framework performance regression](../contributing#framework-performance-reg
 
 ## Incident checks
 
-1. Check `/elura/healthz`, `/elura/readyz`, and `/elura/version` on the affected instance.
+1. Check `/healthz`, `/readyz`, and `/elura/version` on the affected instance.
 2. Capture `/elura/debug/stats` and `/elura/debug/backend` before restarting it.
 3. Compare Gateway backend errors with World command failures and latency.
 4. Verify discovery targets and World readiness.

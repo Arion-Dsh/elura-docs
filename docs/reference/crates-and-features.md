@@ -52,7 +52,7 @@ The `elura` crate enables `gateway` and `world` by default. Both include
 | `kubernetes` | `adapters`, `gateway`, Kubernetes adapter implementations |
 | `admin` | `adapters`, adapter-backed admin capabilities |
 | `providers` | `core`, base `elura-providers` |
-| `identity` | identity provider set |
+| `identity` | identity provider set; also enables the Gateway HTTP identity bridge when `gateway` is enabled |
 | `notification-alisms` | Aliyun SMS notification provider |
 | `otp` | OTP service and store integration |
 | `payment-alipay` | Alipay |
@@ -107,6 +107,11 @@ use elura::providers::identity::GuestProvider; // `identity`
 use elura::providers::payment::WechatPayPayment; // `payment-wechat-pay`
 ```
 
+With `gateway` and `identity` enabled, the prelude also exports
+`IdentityHttpBackend` and `IdentityHttpPolicy`. `HttpAuthApi`,
+`HttpBearerAuth`, `AuthenticatedHttp`, and the HTTP token types are available
+with the normal `gateway`/`core` features.
+
 This split makes dependencies on Redis, Kubernetes, SQL, or third-party APIs
 easy to see during review. Feature flags still determine whether a module or
 item is available. Provider operations use
@@ -117,20 +122,20 @@ from the prelude when their feature is enabled.
 
 ```toml
 # Gateway + World runtime only (default)
-elura = "0.2.7"
+elura = "0.2.8"
 
 # DNS discovery types live in the adapter crate without a concrete optional
 # backend, so the generated split project starts with this feature.
-elura = { version = "0.2.7", features = ["adapters"] }
+elura = { version = "0.2.8", features = ["adapters"] }
 
 # Redis-backed distributed application
-elura = { version = "0.2.7", features = ["redis"] }
+elura = { version = "0.2.8", features = ["redis"] }
 
 # Kubernetes discovery and SQL account versions
-elura = { version = "0.2.7", features = ["kubernetes", "sql"] }
+elura = { version = "0.2.8", features = ["kubernetes", "sql"] }
 
 # Authoritative realtime gameplay primitives
-elura = { version = "0.2.7", features = [
+elura = { version = "0.2.8", features = [
   "room", "aoi", "simulation", "netcode", "replication",
   "lag-compensation",
 ] }

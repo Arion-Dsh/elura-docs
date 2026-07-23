@@ -14,10 +14,12 @@ Elura 将账户身份、实时传输会话和当前负责游戏工作的 World �
 | `user_id` | 玩家或角色主体 |
 | `generation` | 用于撤销的账户版本 |
 
-上层登录服务验证 Credential、解析账户、选择 Region 与 Realm，然后调用
-`TicketService::issue_login`。生成的登录票据短期有效且只能使用一次。每张票据
-都必须显式携带 `login` 或 `reconnect` 用途；Gateway 会验证 Issuer、Audience、
-签名、用途、有效期、身份和重放状态，然后才把身份绑定到会话。
+上层登录服务验证 Credential、解析账户，并授权所选 Region、Realm 与角色。它
+既可以直接调用 `TicketService::issue_login`，也可以挂载 `HttpAuthApi`，通过
+`POST /elura/auth/login` 或 `POST /elura/game/session-ticket` 签发连接凭证。
+生成的登录票据短期有效且只能使用一次。每张票据都必须显式携带 `login` 或
+`reconnect` 用途；Gateway 会验证 Issuer、Audience、签名、用途、有效期、身份
+和重放状态，然后才把身份绑定到会话。
 
 `TicketService` 分别配置两种用途的有效期。生成的 Gateway 默认使用 60 秒
 `login_ttl` 和 30 分钟 `reconnect_ttl`；两者都必须大于零且不超过一小时。
@@ -34,10 +36,13 @@ Elura 将账户身份、实时传输会话和当前负责游戏工作的 World �
 当前票据并返回替代票据。发生断线后，客户端建立新连接，把最新重连票据发送到
 认证路由 `1`；认证成功会消费该票据并再次返回下一张重连票据。
 
-如果重连票据丢失或过期，客户端使用上层应用保存的 Refresh Session 向登录服务
-申请新的登录票据。Elura 负责 Gateway 票据验证与轮换；上层应用负责 Refresh
-Token、设备会话、Credential 重新验证以及是否显示登录 UI。Sequence 用于处理
-断线前后的消息交付；重试时机、状态对账和 UI 行为仍属于客户端策略。
+如果重连票据丢失或过期，持有有效 HTTP Access Token 的客户端调用
+`/elura/game/session-ticket`。Access Token 过期时，先通过
+`/elura/auth/refresh` 轮换一次性 Refresh Token；只有 Refresh 流程也无法完成时
+才需要再次显示 Provider 登录 UI。Elura 负责 Token 与 Gateway 票据的验证和
+轮换；上层应用负责账户策略、Credential 重新验证以及是否显示登录 UI。
+Sequence 用于处理断线前后的消息交付；重试时机、状态对账和 UI 行为仍属于
+客户端策略。
 
 ## 登录排队与容量
 

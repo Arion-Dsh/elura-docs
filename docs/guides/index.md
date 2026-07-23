@@ -12,7 +12,7 @@ first Elura project, begin with the [quick start](/guide/quick-start).
 | Build rooms, fixed-step simulation, AOI, prediction, replication, or lag compensation | [Realtime gameplay](./realtime-gameplay) |
 | Accept TCP, UDP, WebSocket, WebTransport, QUIC, or a custom transport | [Client transports](./transports) |
 | Add an Axum API, callback, or internal HTTP endpoint | [Application HTTP services](./application-http) |
-| Connect a C++, C#, or TypeScript client | [Client protocol SDKs](./client-sdks) |
+| Connect a Rust, C++, C#, or TypeScript client | [Client protocol SDKs](./client-sdks) |
 | Load and validate application configuration | [Configuration](./configuration) |
 | Add identity, OTP, notifications, or payments | [Providers](./providers) |
 

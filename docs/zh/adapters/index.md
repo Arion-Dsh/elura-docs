@@ -42,10 +42,10 @@ Redis、SQL 与 Kubernetes 都是实现，不是框架必需组件。Gateway 到
 
 ```toml
 # 契约模块与 DNS Discovery
-elura = { version = "0.2.7", features = ["adapters"] }
+elura = { version = "0.2.8", features = ["adapters"] }
 
 # 只添加实际使用的基础设施
-elura = { version = "0.2.7", features = ["redis", "sql", "kubernetes"] }
+elura = { version = "0.2.8", features = ["redis", "sql", "kubernetes"] }
 ```
 
 具体类型位于 `elura::adapters`，并且不会进入 Prelude，这让 Redis、SQL 或

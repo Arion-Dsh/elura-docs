@@ -74,15 +74,15 @@ src/world/inventory/equip_item.rs
 
 ## 生成客户端协议 SDK
 
-一次生成全部三套客户端库：
+一次生成全部四套客户端库：
 
 ```bash
 elura init sdk --dir .
 ```
 
-也可以通过 `--language cpp`、`--language csharp` 或
+也可以通过 `--language rust`、`--language cpp`、`--language csharp` 或
 `--language typescript` 只选择一种语言。输出位于 `sdk/<language>/`，包含
-ELR2 帧编解码器、Gateway 内置契约、Session Control protobuf 和黄金向量测试。
+ELR2 帧编解码器、Elura 保留路由、Session Control protobuf 和黄金向量测试。
 Socket 生命周期和应用路由分发仍由客户端负责。
 
 传输规则和测试命令见[客户端协议 SDK](../guides/client-sdks)。

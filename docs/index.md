@@ -79,20 +79,18 @@ when you want the full picture.
 | Build realtime rooms, AOI, prediction, or entity replication | [Realtime gameplay](/guides/realtime-gameplay) |
 | Add TCP, UDP, WebSocket, WebTransport, QUIC, or a custom client endpoint | [Client transports](/guides/transports) |
 | Add an Axum HTTP API or callback endpoint | [Application HTTP services](/guides/application-http) |
-| Connect a C++, C#, or TypeScript client | [Client protocol SDKs](/guides/client-sdks) |
+| Connect a Rust, C++, C#, or TypeScript client | [Client protocol SDKs](/guides/client-sdks) |
 | Understand generated files | [Generated project](/guide/generated-project) |
 | Choose Redis, SQL, DNS, Kubernetes, or a custom backend | [Adapters](/adapters/) |
 | Add login, OTP, SMS, or payments | [Providers](/providers/) |
 | Prepare a production release | [Production checklist](/reference/production-checklist) |
 
 ::: info Project status
-The current release is **v0.2.7**. Elura now includes typed World business
-APIs, standalone and distributed Gateway/World runtimes, authoritative realtime
-gameplay primitives, production adapters and providers, and transport-aware
-full-stack testing. Version 0.2.7 adds per-route QUIC Hybrid mode, keeping
-durable traffic on a reliable stream while selected realtime routes use
-Datagrams. Application retries now always reach World, where durable
-idempotency belongs to application operation IDs and shared storage. The
-project remains pre-1.0: pin exact versions in production and review release
-notes and compatibility before upgrading.
+The current release is **v0.2.8**. It adds one-login HTTP access/refresh
+authentication with one-time Gateway ticket exchange, a built-in
+`IdentityService` bridge, and standalone Rust client SDK generation alongside
+C++, C#, and TypeScript. Public framework routes consistently use
+`/elura/...`; Kubernetes-compatible liveness and readiness probes remain at
+`/healthz` and `/readyz`. The project remains pre-1.0: pin exact versions in
+production and review release notes and compatibility before upgrading.
 :::
