@@ -109,7 +109,7 @@ npm run docs:build
 
 ## 贡献 Provider 与 Adapter
 
-欢迎向 [Elura 仓库](https://github.com/Arion-Dsh/horizon-rs)贡献可复用的
+欢迎向 [Elura 仓库](https://github.com/Arion-Dsh/elura)贡献可复用的
 Provider 和 Adapter。组织专有策略应留在应用中；实现公开协议或通用基础设施能力
 时，应优先提交上游 PR。
 

@@ -21,7 +21,7 @@ Add Axum to the upper application:
 ```toml
 [dependencies]
 axum = "0.8"
-elura = "0.2.10"
+elura = "0.3.1"
 ```
 
 Build an ordinary Axum `Router`, then give it a dedicated listener with
@@ -158,7 +158,7 @@ World::new(world_config)
 Enable the `monolith` feature:
 
 ```toml
-elura = { version = "0.2.10", features = ["monolith"] }
+elura = { version = "0.3.1", features = ["monolith"] }
 ```
 
 Use `Monolith::gateway` and `Monolith::world` when the combined process needs

@@ -215,7 +215,7 @@ const zhSidebar = {
 export default defineConfig({
   title: 'Elura',
   titleTemplate: ':title | Elura',
-  description: 'A Rust framework for online game servers, gateways, Worlds, sessions, routing, and infrastructure integrations.',
+  description: 'An open-source, modular Rust framework for authoritative realtime gameplay and extensible online game services.',
   base,
   cleanUrls: true,
   sitemap: {
@@ -237,7 +237,7 @@ export default defineConfig({
       link: '/zh/',
       title: 'Elura',
       titleTemplate: ':title | Elura 中文文档',
-      description: 'Elura 是用于在线游戏服务器、网关、World、会话、路由和基础设施集成的 Rust 框架。',
+      description: 'Elura 是面向权威实时玩法与可扩展在线游戏服务的开源模块化 Rust 框架。',
       themeConfig: {
         nav: zhNav,
         sidebar: zhSidebar,
@@ -267,15 +267,15 @@ export default defineConfig({
     ['meta', { name: 'keywords', content: 'Elura, Rust game server, online game server, Rust gateway, multiplayer backend, game networking' }],
     ['meta', { property: 'og:type', content: 'website' }],
     ['meta', { property: 'og:title', content: 'Elura Documentation' }],
-    ['meta', { property: 'og:description', content: 'Typed game logic, resilient networking, and infrastructure that scales when you need it.' }],
+    ['meta', { property: 'og:description', content: 'An open-source, modular Rust framework for authoritative realtime gameplay and extensible online game services.' }],
     ['meta', { name: 'twitter:card', content: 'summary' }],
     ['meta', { name: 'twitter:title', content: 'Elura Documentation' }],
-    ['meta', { name: 'twitter:description', content: 'Typed game logic, resilient networking, and infrastructure that scales when you need it.' }]
+    ['meta', { name: 'twitter:description', content: 'An open-source, modular Rust framework for authoritative realtime gameplay and extensible online game services.' }]
   ],
   themeConfig: {
     siteTitle: 'Elura',
     socialLinks: [
-      { icon: 'github', link: 'https://github.com/Arion-Dsh/horizon-rs' }
+      { icon: 'github', link: 'https://github.com/Arion-Dsh/elura' }
     ],
     editLink: {
       pattern: 'https://github.com/Arion-Dsh/elura-docs/edit/main/docs/:path',

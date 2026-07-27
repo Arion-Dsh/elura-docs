@@ -33,7 +33,6 @@ elura init <TARGET> [OPTIONS]
 | `monolith` | 单体入口、JSON 配置和 Compose 文件 |
 | `module` | 指定名称的 World 模块骨架 |
 | `route` | 类型化 Rust 路由与 protobuf 定义 |
-| `sdk` | C++20、兼容 Unity 的 C# 9 / .NET Standard 2.1 与 TypeScript ELR2 协议库 |
 | `docker` | Docker Compose 文件与环境变量示例 |
 | `k8s` | Kubernetes/Kustomize 基础配置；`kubernetes` 是别名 |
 | `all` | 项目清单、配置、Gateway、World、Docker 和 Kubernetes |
@@ -72,20 +71,11 @@ src/world/inventory/equip_item.rs
 生成器不会修改 `mod.rs` 或 `build.rs`。生成的 Rust 文件包含该路由的 `Route`
 实现和注册函数。请在应用中显式接入新模块，使路由所有权保持清晰可审查。
 
-## 生成客户端协议 SDK
+## 客户端 SDK
 
-一次生成全部四套客户端库：
-
-```bash
-elura init sdk --dir .
-```
-
-也可以通过 `--language rust`、`--language cpp`、`--language csharp` 或
-`--language typescript` 只选择一种语言。输出位于 `sdk/<language>/`，包含
-ELR2 帧编解码器、Elura 保留路由、Session Control protobuf 和黄金向量测试。
-Socket 生命周期和应用路由分发仍由客户端负责。
-
-传输规则和测试命令见[客户端协议 SDK](../guides/client-sdks)。
+CLI 不再生成或安装客户端 SDK。Rust、C++20 和 C# / Unity SDK 分别由独立的
+官方 GitHub 仓库维护。仓库地址、安装方式与传输行为见
+[客户端 SDK](../guides/client-sdks)。
 
 ## 安全地重新生成
 

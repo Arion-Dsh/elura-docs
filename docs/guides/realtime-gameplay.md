@@ -65,7 +65,7 @@ Enable only the parts used by the application:
 
 ```toml
 [dependencies]
-elura = { version = "0.2.10", features = [
+elura = { version = "0.3.1", features = [
   "room",
   "aoi",
   "simulation",
@@ -270,10 +270,9 @@ rotation, animation, or custom interpolation.
 prediction key so the client can replace the temporary entity rather than
 displaying a duplicate.
 
-The generated C++, C#, and TypeScript SDKs implement the Gateway ELR2 protocol;
-they do not provide an engine-specific prediction or interpolation runtime.
-Non-Rust game clients must integrate equivalent client-side state and rendering
-logic.
+The official C++ and C# SDKs implement the Gateway ELR2 protocol; they do not
+provide an engine-specific prediction or interpolation runtime. Non-Rust game
+clients must integrate equivalent client-side state and rendering logic.
 
 ```rust
 use std::time::Duration;

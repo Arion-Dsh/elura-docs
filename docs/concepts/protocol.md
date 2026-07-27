@@ -36,15 +36,15 @@ bidirectional stream; in hybrid mode, configured application routes use one
 complete ELR2 frame per QUIC Datagram while framework and unselected routes
 remain on the stream. Text WebSocket messages are not part of the protocol.
 
-Elura can generate matching standalone Rust, C++20, C#, and TypeScript codecs. See
-[Client protocol SDKs](../guides/client-sdks) for the integration boundary and
-transport-specific checks.
+Official standalone Rust, C++20, and C# SDKs are available from their
+language-specific GitHub repositories. See [Client SDKs](../guides/client-sdks)
+for download links, integration boundaries, and transport-specific checks.
 
 ## The same protocol in every language
 
 The server's Rust `Frame` and `FrameCodec` implementation is the ELR2 reference
-implementation, not a Rust-only transport. Generated Rust, C++20, C#, and
-TypeScript SDKs encode the same 28-byte header, integer byte order, frame kinds,
+implementation, not a Rust-only transport. The official Rust, C++20, and C#
+SDKs encode the same 28-byte header, integer byte order, frame kinds,
 validation rules, and payload bytes. Cross-language golden vectors verify
 byte-for-byte compatibility.
 

@@ -1,215 +1,178 @@
-# 客户端协议 SDK
+# 客户端 SDK
 
-Elura 可以生成 Rust、C++20、C# 9 / .NET Standard 2.1（兼容 Unity 6.3 LTS）
-和严格 TypeScript 本地协议库。它们实现公开的 Elura 客户端 ELR2 v2 契约，
-客户端不需要重复手写二进制帧、保留路由和内置 Payload。
+Elura 为 Rust、C++20 和 C# / Unity 提供官方独立 SDK 仓库。三套 SDK 实现与
+Gateway 相同的公开 ELR2 v2 Wire Contract，并独立于服务端仓库进行维护和版本
+管理。
 
-这些 SDK 是服务端所用 Wire Contract 的独立实现，并不是不同协议。同一个帧由
-Rust、C++20、C# 或 TypeScript 编码时，会产生完全相同的字节。
+`elura` CLI 不再生成或安装客户端 SDK。请从对应语言的 GitHub 仓库获取：
 
-## 生成协议库
-
-在当前应用中生成全部语言：
-
-```bash
-elura init sdk --dir .
-```
-
-应用不需要全部语言时，只生成其中一种：
-
-```bash
-elura init sdk --language rust --dir .
-elura init sdk --language cpp --dir .
-elura init sdk --language csharp --dir .
-elura init sdk --language typescript --dir .
-```
-
-该命令与其他脚手架一样支持 `--dry-run` 和 `--force`。默认保留已经自定义的
-文件。
-
-## 每套 SDK 包含什么
-
-| 输出目录 | 运行环境 | 自带检查 |
+| 语言 | 官方仓库 | 主要包 |
 | --- | --- | --- |
-| `sdk/rust/` | 独立 Rust 2024 crate；核心与传输无关，可选集成 Tokio codec | Cargo 黄金向量测试 |
-| `sdk/cpp/` | 无第三方依赖的 C++20 | CMake/CTest 黄金向量 |
-| `sdk/csharp/` | C# 9 / .NET Standard 2.1，兼容 Unity 6.3 LTS | 在 .NET 9 上运行黄金向量 |
-| `sdk/typescript/` | 浏览器与 Node.js 可用、无运行时依赖的严格 ES Module | Node 测试与类型检查 |
+| Rust | [`Arion-Dsh/elura-sdk-rust`](https://github.com/Arion-Dsh/elura-sdk-rust) | `elura-protocol`、`elura-client` |
+| C++20 | [`Arion-Dsh/elura-sdk-cpp`](https://github.com/Arion-Dsh/elura-sdk-cpp) | `elura::protocol`、`elura::client_core`、各传输组件 |
+| C# / Unity | [`Arion-Dsh/elura-sdk-csharp`](https://github.com/Arion-Dsh/elura-sdk-csharp) | `Elura.Protocol`、`Elura.Client.Core`、各传输包 |
 
-四套实现都包含帧编码、完整消息解码、TCP 流重组、保留路由、标准错误、认证与
-重连 Payload 以及 Session Control protobuf 编码。Rust、TypeScript 与 C# 为
-这些内置 Payload 提供 JSON Encoder/Decoder；C++ 提供对应的模型 Struct，由
-应用选择的 JSON 库完成序列化。项目中还会包含
-`proto/session_control.proto`，便于希望自行生成 protobuf 类型的应用使用。
-
-标准错误模型包含可选的 `retry_after_ms`。收到可重试的 `REALM_FULL` 时，应回到
-上层应用登录队列，或至少等待该延迟；不得对认证路由进行忙循环重试。
-
-SDK 有意**不负责**打开 Socket 或分发应用路由。连接生命周期、续票调度、重连
-退避、请求关联以及 `100+` 路由的消息编码仍由客户端负责。
-
-## 上层最简用法
-
-生成的 API 将协议帧与上层选择的传输分开。传输只需发送编码后的字节，并把收到
-的字节交回 SDK。
-
-Rust SDK 默认不依赖异步运行时。使用 Tokio 字节流时，启用可选适配器，并添加
-应用所需的流工具：
-
-```toml
-[dependencies]
-elura-protocol = { version = "0.2.10", features = ["tokio-codec"] }
-futures-util = { version = "0.3", features = ["sink"] }
-tokio-util = { version = "0.7", features = ["codec"] }
-```
-
-::: code-group
-
-```rust [Rust]
-use elura_protocol::{Elr2Codec, EluraProtocol};
-use futures_util::SinkExt;
-use tokio_util::codec::Framed;
-
-let mut connection = Framed::new(stream, Elr2Codec::default());
-let request = EluraProtocol::authenticate(next_request_id, login_ticket)?;
-connection.send(request).await?;
-```
-
-```cpp [C++20]
-#include <elura/elr2.hpp>
-
-auto request = elura::Elr2Frame::request(
-    100, next_request_id++, elura::to_bytes(R"({"x":10,"y":20})"));
-send_bytes(elura::Elr2Codec::encode(request));
-
-elura::Elr2StreamDecoder decoder;
-decoder.append(received_chunk);
-while (auto frame = decoder.next()) {
-  handle(*frame);
-}
-```
-
-```csharp [Unity / C# 9]
-var request = EluraProtocol.Authenticate(nextRequestId++, loginTicket);
-transport.Send(Elr2Codec.Encode(request));
-
-decoder.Append(receivedChunk);
-while (decoder.TryRead(out var frame))
-{
-    Handle(frame!);
-}
-```
-
-```ts [TypeScript]
-import { Elr2, EluraProtocol } from "@elura/protocol";
-
-const request = EluraProtocol.authenticate(nextRequestId++, loginTicket);
-socket.send(Elr2.encode(request));
-
-socket.binaryType = "arraybuffer";
-socket.onmessage = ({ data }) => handle(Elr2.decode(data as ArrayBuffer));
-```
-
-:::
-
-启用 `tokio-codec` 后，Rust 的 `Elr2Codec` 可直接与
-`tokio_util::codec::Framed` 集成；未启用时使用与传输无关的 `encode` 和
-`decode` API。C++ 可直接接收 `std::vector`、`std::array` 和 `std::span`
-字节区间。C# 内置认证与重连 JSON 编解码，并且不依赖 `System.Text.Json`。
-TypeScript 会自动把字符串 Payload 编码为 UTF-8，并直接接收 `ArrayBuffer`
-或 `Uint8Array`。
-
-## 静默重连流程
-
-1. 解码路由 `1` 的认证响应，只安全保存 `response.reconnect.ticket`。
-2. 根据 `response.reconnect.expires_in_seconds` 在过期前安排续票。
-3. 保持连接时，Rust 调用 `EluraProtocol::renew_reconnect_ticket(...)`，
-   TypeScript 调用 `EluraProtocol.renewReconnectTicket(...)`，C# 调用
-   `EluraProtocol.RenewReconnectTicket(...)`。C++ 应用使用自己的 JSON 库序列化
-   `ReconnectTicketRenewalRequest`，并发送到 `EluraRoutes::RenewReconnectTicket`。
-4. 成功解码续票响应后，才用返回的新票据替换本地票据。
-5. 断线后建立新传输连接，用保存的重连票据调用路由 `1`，再保存新认证响应中的
-   重连票据。
-6. 没有有效重连票据时，使用有效 HTTP Access Token 调用
-   `/elura/game/session-ticket`；Access Token 过期时先通过
-   `/elura/auth/refresh` 轮换。
-
-票据本身是 Credential，不应写入日志或应用遥测。
-
-## 传输契约
-
-- TCP 与可靠 QUIC Stream 连续承载编码后的 ELR2 帧。读取结果可能是半个帧或
-  多个帧，必须交给 SDK 提供的流式 Decoder。
-- 每个 WebSocket 二进制 Message 恰好包含一个 ELR2 帧，并协商
-  `elura.v2` WebSocket 子协议。QUIC 使用相同字符串作为 ALPN。
-- 每个 UDP、WebTransport Datagram 或 QUIC Hybrid Datagram 恰好包含一帧完整
-  ELR2。QUIC Hybrid 客户端必须使用与服务端相同的路由集合；框架路由和未指定
-  路由仍使用可靠 Stream。对于 Best-effort 游戏消息，客户端需要实现序列、冗余、
-  ACK 和恢复语义。
-- WebTransport 可靠双向 Stream 使用与 TCP、QUIC 相同的字节流 Framing 规则。
-- ELR2 不使用 WebSocket 文本 Message。
-- Request ID 是客户端生成的非零 `u64`。TypeScript 可直接使用安全整数范围内的
-  普通 `number` 作为计数器；需要完整无符号 64 位范围时也可传入 `bigint`。解码
-  后的 Request ID 表示为 `bigint`。每次重试尝试都应分配新的 Request ID，以便
-  区分迟到响应；业务 Operation ID 应放在应用 Payload 中并保持不变。
-
-帧布局、保留路由流程、重试和兼容性规则见 [ELR2 协议](../concepts/protocol)。
-
-生成的 SDK 处理 ELR2 字节，但不实现 Socket、客户端预测、远端插值或引擎实体
-模型。这些接入边界见[实时游戏开发](./realtime-gameplay)。
-
-## 验证生成代码
-
-接入传输层之前，运行对应语言自带的检查：
+## 从 GitHub 下载
 
 ::: code-group
 
 ```bash [Rust]
-cargo test --manifest-path sdk/rust/Cargo.toml
-cargo test --manifest-path sdk/rust/Cargo.toml --features tokio-codec
+git clone https://github.com/Arion-Dsh/elura-sdk-rust.git
+cd elura-sdk-rust
+cargo test --workspace --all-features
 ```
 
-```bash [C++]
-cmake -S sdk/cpp -B sdk/cpp/build -DBUILD_TESTING=ON
-cmake --build sdk/cpp/build
-ctest --test-dir sdk/cpp/build --output-on-failure
+```bash [C++20]
+git clone https://github.com/Arion-Dsh/elura-sdk-cpp.git
+cd elura-sdk-cpp
+cmake -S . -B build -DBUILD_TESTING=ON
+cmake --build build --parallel
+ctest --test-dir build --output-on-failure
 ```
 
-```bash [C#]
-dotnet run --project \
-  sdk/csharp/Elura.Protocol.Tests/Elura.Protocol.Tests.csproj
-```
-
-```bash [TypeScript]
-cd sdk/typescript
-npm install
-npm test
+```bash [C# / Unity]
+git clone https://github.com/Arion-Dsh/elura-sdk-csharp.git
+cd elura-sdk-csharp
+dotnet build Elura.sln -c Release
 ```
 
 :::
 
-这些检查在四种语言中使用同一组协议黄金向量。升级 Elura 并重新生成 SDK 后，
-应再次运行它们。
+生产构建应固定 Release Tag 或 Commit Hash，不要直接跟随 `main`。
+
+## Rust
+
+需要开箱即用的异步 Gateway Client 时，使用 `elura-client`：
+
+```toml
+[dependencies]
+elura-client = { path = "../elura-sdk-rust/crates/elura-client" }
+```
+
+```rust
+use elura_client::EluraClient;
+
+let client = EluraClient::connect(gateway_address, login_ticket).await?;
+let snapshot: Snapshot = client
+    .request_protobuf(120, &MoveRequest { dx: 1, dy: 0 })
+    .await?;
+```
+
+TCP 和 UDP 不需要可选 Feature。应用只在需要时启用 `websocket`、`quic` 或
+`webtransport`。只需要 ELR2 Framing 与 Payload Helper 时，可直接使用
+`elura-protocol`。
+
+所有内置传输共用同一套 Session Driver，统一处理认证、心跳、请求关联、Push
+分发、重连票据续期和自动重连。
+
+## C++20
+
+通过 CMake `FetchContent` 引入官方仓库：
+
+```cmake
+include(FetchContent)
+FetchContent_Declare(
+  elura_sdk
+  GIT_REPOSITORY https://github.com/Arion-Dsh/elura-sdk-cpp.git
+  GIT_TAG <release-tag-or-commit>
+)
+FetchContent_MakeAvailable(elura_sdk)
+
+target_link_libraries(my_game PRIVATE elura::transport_tcp)
+```
+
+只链接应用实际使用的组件。例如 `elura::transport_tcp` 不会引入 WebSocket、
+QUIC 或 WebTransport 代码；需要全部传输时仍可使用聚合目标
+`elura::client`。
+
+```cpp
+#include <elura/client.hpp>
+
+auto client = elura::EluraClient::connect(
+    "127.0.0.1:17000",
+    login_ticket_from_your_backend);
+
+auto response = client
+    .request(120, application_payload)
+    .get();
+```
+
+## C# 与 Unity
+
+从 GitHub Clone 仓库后，只引用应用需要的传输项目：
+
+```xml
+<ItemGroup>
+  <ProjectReference Include="../elura-sdk-csharp/Elura.Transport.Tcp/Elura.Transport.Tcp.csproj" />
+</ItemGroup>
+```
+
+```csharp
+using Elura.Client;
+
+await using var client = await EluraTcpClient.ConnectAsync(
+    "gateway.example.com:17000",
+    loginTicketFromYourBackend);
+
+var response = await client.RequestAsync(120, applicationPayload);
+```
+
+WebSocket 使用 `Elura.Transport.WebSocket`。Unity 项目可以构建官方仓库，并只把
+所需的 .NET Standard 2.1 DLL 复制到 `Assets/Plugins/Elura/`。准确的程序集列表
+见 [C# SDK README](https://github.com/Arion-Dsh/elura-sdk-csharp#readme)。
+
+## 重连与事件
+
+Rust、C++ 和 C# 高层 Client 会自动：
+
+1. 只保存最新的重连票据；
+2. 在票据过期前续期；
+3. 普通网络断开后，使用有界指数退避与 Jitter 自动重连；
+4. 发布连接状态、Push、Session Control 和重新认证事件。
+
+传输断开时，正在执行的应用请求不会自动重放，而是返回对应语言的
+`RequestInterrupted` 错误，由应用判断该操作是否可以安全重试。
+
+重连票据过期、已消费或被撤销时，Client 会发出
+`ReauthenticationRequired`。应用应从自己的登录服务获取新的一次性 Login
+Ticket，并传给 Client 的 `reauthenticate` 操作。普通网络抖动不需要用户重新
+交互登录。
+
+Login Ticket 和 Reconnect Ticket 都是 Credential，不应写入日志或应用遥测。
+
+## ELR2 传输契约
+
+三套 SDK 实现完全相同的 28 字节 ELR2 Header、网络字节序、帧类型、保留路由、
+校验规则和 Payload 字节。跨语言黄金向量会验证逐字节兼容性。
+
+- TCP 与可靠 QUIC Stream 连续承载 ELR2 帧。一次读取可能得到半帧或多个帧，
+  必须使用 SDK 的流式 Decoder。
+- 每个 WebSocket 二进制 Message 恰好包含一个 ELR2 帧，并协商 `elura.v2`
+  子协议。
+- 每个 UDP、WebTransport Datagram 或 QUIC Datagram 恰好包含一帧完整 ELR2。
+- Request ID 是客户端生成的非零关联标识。每次传输尝试都应分配新的 Request
+  ID。
+- 默认 Payload 上限为 1 MiB，协议绝对上限为 64 MiB。大型资源应通过对象存储
+  或应用层分片上传协议传输。
+
+帧布局和保留路由流程见 [ELR2 协议](../concepts/protocol)。
 
 ## 应用消息
 
-生成的协议库覆盖 Elura 保留的 Gateway 路由与 Wire Envelope。对于 ID 为 `120`
-的 `inventory.equip_item` 等游戏路由，应在应用中定义 Request/Response protobuf，
-使用常规语言工具生成消息类型，将 Request 编码进 ELR2 帧，再用相同 Schema
-解码关联 Response 的 Payload。
+SDK 覆盖 Elura 保留的 Gateway 路由和 Wire Envelope。应用路由从 `100` 开始。
+应用应定义 Request/Response protobuf，使用对应语言的常规工具生成消息类型，并
+保证服务端与客户端使用相同 Route ID 和 Schema。
 
-Rust 服务端通过 `Route` 实现绑定 ID 与 protobuf 类型。客户端构建应通过生成的
-应用代码或其他经过评审的单一事实来源使用相同 ID 和 Schema。低于 `100` 的 ID
-属于运行时，不能分配给游戏命令。
+需要幂等保证的业务操作必须携带应用自有 Operation ID。ELR2 Request ID 只标识
+一次传输尝试，不能作为持久化幂等键。
 
 ## 安全升级
 
-生成的 SDK 是上层应用中的源码，不是独立版本的包依赖。替换已自定义的文件前：
+SDK 是独立的版本化依赖，不再是 Elura 服务端项目中的生成源码。升级时：
 
-1. 使用新 CLI 运行 `elura init sdk --dry-run`；
-2. 对比新模板与本地传输层接入；
-3. 重新生成并运行黄金向量测试；
-4. 在服务端要求新协议版本前，先发布兼容客户端。
+1. 从对应官方 GitHub 仓库选择兼容的 SDK Release Tag 或 Commit；
+2. 阅读该 SDK 的 Release Notes 和 README；
+3. 重新运行协议、Client 与传输测试；
+4. 在服务端要求新版 Wire Protocol 前先发布兼容客户端。
 
-Elura 在 `0.x` 阶段可能调整 API，而 Wire Protocol 版本会显式演进。发布客户端
-时应锁定用于生成代码的 CLI 版本。
+Elura 在 `0.x` 阶段可能调整 API，而 Wire Protocol 版本会显式演进。

@@ -20,7 +20,7 @@ features:
     linkText: 开始构建
   - icon: "02"
     title: 从协议到 Handler 全程类型安全
-    details: 串联 ELR2 帧、生成的客户端 SDK、protobuf 消息、类型化 Handler 和显式中间件。
+    details: 串联 ELR2 帧、官方客户端 SDK、protobuf 消息、类型化 Handler 和显式中间件。
     link: /zh/guides/world-development
     linkText: 编写游戏逻辑
   - icon: "03"
@@ -75,16 +75,15 @@ elura init all --dir .
 | 构建实时房间、AOI、预测或实体状态同步 | [实时游戏开发](/zh/guides/realtime-gameplay) |
 | 添加 TCP、UDP、WebSocket、WebTransport、QUIC 或自定义客户端端点 | [客户端传输](/zh/guides/transports) |
 | 添加 Axum HTTP API 或回调端点 | [应用 HTTP 服务](/zh/guides/application-http) |
-| 连接 Rust、C++、C# 或 TypeScript 客户端 | [客户端协议 SDK](/zh/guides/client-sdks) |
+| 连接 Rust、C++ 或 C# 客户端 | [客户端 SDK](/zh/guides/client-sdks) |
 | 看懂生成的文件 | [生成的项目](/zh/guide/generated-project) |
 | 选择 Redis、SQL、DNS、Kubernetes 或自定义后端 | [Adapters](/zh/adapters/) |
 | 接入登录、OTP、短信或支付 | [Providers](/zh/providers/) |
 | 准备生产发布 | [生产检查清单](/zh/reference/production-checklist) |
 
 ::: info 项目状态
-当前版本为 **v0.2.10**。生成的 Rust 客户端 SDK 保持轻量、与传输无关的协议
-核心，并通过可选 `tokio-codec` feature 提供 Tokio 字节流 Framing；发布到
-crates.io 的 `elura-cli` 已包含完整 Rust SDK 模板。C++、C# 与 TypeScript SDK
-仍可正常生成。项目尚未进入 1.0：生产环境应锁定精确版本，并在升级前检查
-Release Notes 与兼容性。
+当前文档版本为 **v0.3.1**，本站跟踪 `main` 分支能力。官方 Rust、
+C++20 和 C# / Unity SDK 分别由独立 GitHub 仓库维护，不再由 CLI 生成。
+项目尚未进入 1.0：生产环境应锁定精确版本，并在升级前检查 Release Notes
+与兼容性。
 :::

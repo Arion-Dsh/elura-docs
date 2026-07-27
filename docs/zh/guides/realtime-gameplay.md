@@ -61,7 +61,7 @@ Gateway 与 World 只是这些原语可选的执行和网络宿主。`Room`、`A
 
 ```toml
 [dependencies]
-elura = { version = "0.2.10", features = [
+elura = { version = "0.3.1", features = [
   "room",
   "aoi",
   "simulation",
@@ -250,8 +250,8 @@ assert!(rx.entity(&3).is_none());
 关联起来。Replication 会携带可选 Prediction Key，客户端可以替换临时实体，而不是
 显示两个实体。
 
-生成的 C++、C# 和 TypeScript SDK 只实现 Gateway ELR2 协议，不包含引擎相关的预测
-或插值运行时。非 Rust 客户端需要接入等价的客户端状态管理和表现逻辑。
+官方 C++ 和 C# SDK 只实现 Gateway ELR2 协议，不包含引擎相关的预测或插值
+运行时。非 Rust 客户端需要接入等价的客户端状态管理和表现逻辑。
 
 ```rust
 use std::time::Duration;

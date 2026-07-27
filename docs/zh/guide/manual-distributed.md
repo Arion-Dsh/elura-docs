@@ -28,7 +28,7 @@ Gateways <──> 可替换基础设施 <──> Worlds
 Client，因此本示例无需在应用中直接依赖 `redis`：
 
 ```toml [Cargo.toml]
-elura = { version = "0.2.10", features = ["redis"] }
+elura = { version = "0.3.1", features = ["redis"] }
 ```
 
 ## 2. 注册每个 World

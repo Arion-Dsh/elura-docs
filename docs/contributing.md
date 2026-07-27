@@ -118,7 +118,7 @@ copied into application production configuration. Application teams should use
 ## Contributing Providers and Adapters
 
 Reusable Provider and Adapter implementations are welcome in the
-[Elura repository](https://github.com/Arion-Dsh/horizon-rs). Keep
+[Elura repository](https://github.com/Arion-Dsh/elura). Keep
 organization-specific policy in the application, but prefer an upstream PR when
 the integration implements a public protocol or generally useful
 infrastructure capability.

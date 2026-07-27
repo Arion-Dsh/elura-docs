@@ -33,7 +33,6 @@ Use `elura help init <target>` for target-specific help.
 | `monolith` | Monolith entry point, JSON config, and Compose file |
 | `module` | A named World module skeleton |
 | `route` | A typed Rust route plus protobuf definition |
-| `sdk` | C++20, Unity-compatible C# 9 / .NET Standard 2.1, and TypeScript ELR2 libraries |
 | `docker` | Docker Compose files and environment example |
 | `k8s` | Kubernetes/Kustomize base; `kubernetes` is an alias |
 | `all` | Project manifest, config, Gateway, World, Docker, and Kubernetes |
@@ -76,22 +75,12 @@ contains the route's `Route` implementation and registration function. Wire
 the new module into your application explicitly so route ownership remains
 reviewable.
 
-## Generate client protocol SDKs
+## Client SDKs
 
-Generate all four supported client libraries:
-
-```bash
-elura init sdk --dir .
-```
-
-Or select one language with `--language rust`, `--language cpp`,
-`--language csharp`, or `--language typescript`. The output lives under
-`sdk/<language>/` and includes ELR2 frame codecs, reserved Elura routes,
-Session Control protobuf, and golden-vector tests. Socket ownership and
-application-route dispatch remain in your client.
-
-See [Client protocol SDKs](../guides/client-sdks) for transport rules and test
-commands.
+The CLI does not generate or install client SDKs. Rust, C++20, and C# / Unity
+SDKs are maintained in separate official GitHub repositories. See
+[Client SDKs](../guides/client-sdks) for repository links, installation, and
+transport behavior.
 
 ## Safe regeneration
 
